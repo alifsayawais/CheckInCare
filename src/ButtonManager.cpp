@@ -64,6 +64,12 @@ void ButtonManager::checkButton() {
                 Serial.println("Button released before 3 seconds");
                 resetTimer();
                 setButtonState("white"); // Single press action
+            } else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
+                Serial.println("Button released after exactly 3 seconds");
+                startVacationMode();
+                resetTimer();  // Ensure the timer is reset even during vacation mode
+                vacationModeStarted = true; // Set flag
+                connectivityModeStarted = false; // Ensure connectivity mode is not started
             }
         }
     }
@@ -73,11 +79,7 @@ void ButtonManager::checkButton() {
         startConnectivityMode();
         resetTimer();  // Ensure the timer is reset even during connectivity mode
         connectivityModeStarted = true; // Set flag
-    } else if (buttonState == LOW && (millis() - lastPressTime >= 3000) && !vacationModeStarted) { // Button pressed for 3 seconds
-        Serial.println("Button pressed for 3 seconds");
-        startVacationMode();
-        resetTimer();  // Ensure the timer is reset even during vacation mode
-        vacationModeStarted = true; // Set flag
+        vacationModeStarted = false; // Ensure vacation mode is not started
     }
 
     lastButtonState = reading;

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Email Config</title>
+</head>
+<body>
+    <h1>Set Email Configuration</h1>
+    <form id="email-config-form">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email"><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password"><br><br>
+        <label for="smtpServer">SMTP Server:</label>
+        <input type="text" id="smtpServer" name="smtpServer"><br><br>
+        <label for="smtpPort">SMTP Port:</label>
+        <input type="number" id="smtpPort" name="smtpPort" value="587"><br><br>
+        <button type="button" onclick="setEmailConfig()">Set Email Config</button>
+    </form>
+    <script>
+        async function setEmailConfig() {
+            const form = document.getElementById('email-config-form');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/set-email-config', {
+                    method: 'POST',
+                    body: params
+                });
+                const text = await response.text();
+                alert(text);
+            } catch (error) {
+                console.error('Error setting email config:', error);
+            }
+        }
+    </script>
+</body>
+</html>

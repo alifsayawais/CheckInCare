@@ -16,7 +16,6 @@ o At 12 hours if button is not pressed
 
 
 
-
 while in configuration blue led blinks
 when configuration completes green led blinks and turns off
 ---------------------------------------------------------------------------*/
