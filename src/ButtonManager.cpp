@@ -101,12 +101,12 @@ void ButtonManager::checkButton() {
                 // If 4 consecutive presses are detected, send the email
                 if (consecutivePressCount >= 4) {
                     Serial.println("4 consecutive button presses detected. Sending email...");
+                    
                     // Call the email-sending function here
                     NotificationManager notificationManager("your_email@gmail.com", "your_phone_number");
                     notificationManager.sendEmail(
                         "smtp.gmail.com", 465, 
                         "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
-                        "awais12pk@gmail.com",  
                         "Button Press Alert", 
                         "The button was pressed four times consecutively.", configRedPin);
                     
