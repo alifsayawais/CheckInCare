@@ -11,6 +11,8 @@ public:
     void update();
     void handleClient();
     bool isButtonPressed(); // Add this method
+    int getConsecutivePressCount(); // Add this method
+    void resetConsecutivePressCount(); // Add this method
 
 private:
     int buttonPin;
@@ -31,6 +33,8 @@ private:
     bool wifiConnected;
     bool vacationModeStarted;
     WiFiManager* wifiManager;
+    int consecutivePressCount; // Add this member variable
+    unsigned long lastPressCheckTime; // Add this member variable
 
     void checkButton();
     void resetTimer();

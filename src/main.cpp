@@ -65,15 +65,16 @@ void loop() {
         buttonPressCount++;
         Serial.println("Button pressed: " + String(buttonPressCount));
 
-        // Check for four button presses
-        if (buttonPressCount >= 4) {
-            Serial.println("Button pressed four times. Sending email...");
+        // Check for four consecutive button presses
+        if (buttonManager.getConsecutivePressCount() >= 4) {
+            Serial.println("Button pressed four times consecutively. Sending email...");
             notificationManager->sendEmail("smtp.gmail.com", 465, // Use SMTP port 465 for SSL
-                                           "your_email@gmail.com", "your_app_password", 
-                                           "recipient_email@example.com", 
+                                           "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
+                                           "awais12pk@gmail.com",
                                            "Button Press Alert", 
-                                           "The button was pressed four times.");
+                                           "The button was pressed four times consecutively.");
             buttonPressCount = 0; // Reset counter after sending email
+            buttonManager.resetConsecutivePressCount(); // Reset consecutive press count
         }
     }
 }

@@ -1,8 +1,11 @@
 #include "ButtonManager.h"
+#include <NotificationManager.h>
 
 ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), vacationModeStarted(false), wifiConnected(false), buttonPressed(false) {}
+      lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0) {
+    buttonPressed = false; // Initialize the button pressed flag
+}
 
 void ButtonManager::begin() {
     pinMode(buttonPin, INPUT_PULLUP);
@@ -42,6 +45,31 @@ void ButtonManager::update() {
     if (!wifiConnected && !apMode) {
         flashConfigRedLED();
     }
+
+    // Reset the press count if the interval exceeds 400 ms
+    if (millis() - lastPressCheckTime >= 400) {
+        resetConsecutivePressCount();
+    }
+}
+
+void ButtonManager::handleClient() {
+    wifiManager->handleClient();
+
+    // Check if configuration is done
+    if (wifiManager->isConfigured() && !wifiConnected) {
+        apMode = false;
+        setLED(configBluePin, false, true); // Turn off the flashing blue LED (active LOW)
+        Serial.println("Configuration completed. Attempting to connect to WiFi.");
+
+        // Try to connect to WiFi
+        tryConnectWiFi();
+    }
+}
+
+bool ButtonManager::isButtonPressed() {
+    bool wasPressed = buttonPressed;
+    buttonPressed = false; // Reset the flag after reading
+    return wasPressed;
 }
 
 void ButtonManager::checkButton() {
@@ -61,6 +89,31 @@ void ButtonManager::checkButton() {
                 connectivityModeStarted = false; // Reset flag
                 vacationModeStarted = false; // Reset flag for vacation mode
                 buttonPressed = true; // Set button pressed flag
+
+                // Check for consecutive presses within 0.4 seconds
+                if (millis() - lastPressCheckTime < 400) {
+                    consecutivePressCount++;
+                } else {
+                    consecutivePressCount = 1;
+                }
+                lastPressCheckTime = millis();
+
+                // If 4 consecutive presses are detected, send the email
+                if (consecutivePressCount >= 4) {
+                    Serial.println("4 consecutive button presses detected. Sending email...");
+                    // Call the email-sending function here
+                    NotificationManager notificationManager("your_email@gmail.com", "your_phone_number");
+                    notificationManager.sendEmail(
+                        "smtp.gmail.com", 465, 
+                        "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
+                        "awais12pk@gmail.com",  
+                        "Button Press Alert", 
+                        "The button was pressed four times consecutively.");
+                    
+                    // Automatically release the button and reset the press count
+                    buttonState = HIGH; // Simulate button release
+                    consecutivePressCount = 0; // Reset the press count
+                }
             } else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted && !vacationModeStarted) { // Button released before 3 seconds
                 Serial.println("Button released before 3 seconds");
                 resetTimer();
@@ -194,20 +247,6 @@ void ButtonManager::startVacationMode() {
     // Add any additional logic for vacation/sleep mode here
 }
 
-void ButtonManager::handleClient() {
-    wifiManager->handleClient();
-
-    // Check if configuration is done
-    if (wifiManager->isConfigured() && !wifiConnected) {
-        apMode = false;
-        setLED(configBluePin, false, true); // Turn off the flashing blue LED (active LOW)
-        Serial.println("Configuration completed. Attempting to connect to WiFi.");
-
-        // Try to connect to WiFi
-        tryConnectWiFi();
-    }
-}
-
 void ButtonManager::tryConnectWiFi() {
     String ssid = wifiManager->getSSID();
     String password = wifiManager->getPassword();
@@ -255,8 +294,10 @@ void ButtonManager::indicateConfigurationNeeded() {
     Serial.println("Configuration is needed.");
 }
 
-bool ButtonManager::isButtonPressed() {
-    bool wasPressed = buttonPressed;
-    buttonPressed = false; // Reset the flag after reading
-    return wasPressed;
+int ButtonManager::getConsecutivePressCount() {
+    return consecutivePressCount;
+}
+
+void ButtonManager::resetConsecutivePressCount() {
+    consecutivePressCount = 0;
 }
