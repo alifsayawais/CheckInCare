@@ -2,6 +2,8 @@
 #include "WiFiManager.h"
 #include "ButtonManager.h"
 #include "NotificationManager.h"
+#include <EEPROM.h> // Include the EEPROM library
+#include <nvs_flash.h>
 
 // Define the SSID and password for the Access Point
 const char* ap_ssid = "ESP32-Access-Point";
@@ -25,6 +27,22 @@ NotificationManager* notificationManager;
 
 void setup() {
     Serial.begin(115200); // Initialize serial communication
+
+    // Format NVS if initialization fails
+    if (!EEPROM.begin(512)) {
+        Serial.println("Failed to initialize EEPROM. Formatting NVS...");
+        if (nvs_flash_erase() == ESP_OK) {
+            Serial.println("NVS formatted successfully. Reinitializing EEPROM...");
+            if (!EEPROM.begin(512)) {
+                Serial.println("Failed to reinitialize EEPROM after formatting NVS.");
+                return;
+            }
+        } else {
+            Serial.println("Failed to format NVS.");
+            return;
+        }
+    }
+
     // Initialize the managers
     buttonManager.begin();
 

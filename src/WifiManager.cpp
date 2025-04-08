@@ -1,7 +1,24 @@
 #include "WiFiManager.h"
+#include <nvs.h>
+#include <nvs_flash.h>
+#include <Preferences.h>
+
+Preferences preferences;
 
 WiFiManager::WiFiManager(const char* ap_ssid, const char* ap_password)
-    : ap_ssid(ap_ssid), ap_password(ap_password), server(80), configured(false) {}
+    : ap_ssid(ap_ssid), ap_password(ap_password), server(80), configured(false) {
+    // Initialize NVS
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS partition was truncated and needs to be erased
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        // Retry nvs_flash_init
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+    
+    loadConfigFromNVS(); // Load configuration from NVS
+}
 
 void WiFiManager::begin() {
     WiFi.softAP(ap_ssid, ap_password);
@@ -35,7 +52,9 @@ void WiFiManager::handleConfig() {
     email = server.arg("email");
     phone = server.arg("phone");
 
-    // Store the configuration (in a real application, you should save it to non-volatile storage)
+    // Store the configuration in NVS
+    saveConfigToNVS();
+
     Serial.println("SSID: " + ssid);
     Serial.println("Password: " + password);
     Serial.println("Email: " + email);
@@ -50,7 +69,9 @@ void WiFiManager::handleNotFound() {
 }
 
 void WiFiManager::eraseConfig() {
-    // Erase the previous configuration (in a real application, you should erase it from non-volatile storage)
+    preferences.begin("wifi-config", false);
+    preferences.clear();
+    preferences.end();
     Serial.println("Previous configuration erased.");
     configured = false;
     ssid = "";
@@ -73,4 +94,31 @@ String WiFiManager::getEmail() {
 
 String WiFiManager::getPhone() {
     return phone;
+}
+
+void WiFiManager::saveConfigToNVS() {
+    preferences.begin("wifi-config", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("password", password);
+    preferences.putString("email", email);
+    preferences.putString("phone", phone);
+    preferences.end();
+}
+
+void WiFiManager::loadConfigFromNVS() {
+    preferences.begin("wifi-config", true);
+    ssid = preferences.getString("ssid", "");
+    password = preferences.getString("password", "");
+    email = preferences.getString("email", "");
+    phone = preferences.getString("phone", "");
+    preferences.end();
+
+    // Check if configuration is valid
+    if (ssid.length() > 0 && password.length() > 0) {
+        configured = true;
+        Serial.println("Configuration loaded from NVS.");
+    } else {
+        configured = false;
+        Serial.println("No valid configuration found in NVS.");
+    }
 }

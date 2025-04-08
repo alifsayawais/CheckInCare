@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <nvs.h>
+#include <nvs_flash.h>
 
 class WiFiManager {
 public:
@@ -30,6 +32,8 @@ private:
     void handleRoot();
     void handleNotFound();
     void handleConfig();
+    void saveConfigToNVS(); // New method to save config to NVS
+    void loadConfigFromNVS(); // New method to load config from NVS
 };
 
 #endif // WIFI_MANAGER_H
