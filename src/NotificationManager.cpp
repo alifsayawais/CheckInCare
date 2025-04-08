@@ -6,9 +6,28 @@ NotificationManager::NotificationManager(const String& email, const String& phon
 void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort, 
                                     const char* senderEmail, const char* senderPassword, 
                                     const char* recipientEmail, const char* subject, 
-                                    const char* content) {
+                                    const char* content, int configRedPin) { // Added configRedPin
     SMTPSession smtp;
     SMTP_Message message;
+
+    // Configure configRedPin for LED blinking
+    pinMode(configRedPin, OUTPUT);
+
+    // Blink configRedPin LED rapidly before starting the email process
+    unsigned long blinkStart = millis();
+    unsigned long blinkDuration = 5000; // Blink for 5 seconds
+    bool ledState = false;
+
+    Serial.println("Blinking LED before sending email...");
+    while (millis() - blinkStart < blinkDuration) {
+        if (millis() % 200 < 100) { // Toggle LED every 50ms
+            ledState = !ledState;
+            digitalWrite(configRedPin, ledState ? LOW : HIGH); // Toggle LED (active LOW)
+        }
+    }
+
+    // Turn off the LED after blinking
+    digitalWrite(configRedPin, HIGH); // Turn off LED (active LOW)
 
     // Configure SMTP server
     ESP_Mail_Session session;
@@ -27,12 +46,13 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
     message.text.charSet = "us-ascii";
     message.text.transfer_encoding = Content_Transfer_Encoding::enc_7bit;
 
-    // Connect to the SMTP server and send the email
+    // Attempt to connect to the SMTP server
     if (!smtp.connect(&session)) {
         Serial.println("Error connecting to SMTP server: " + smtp.errorReason());
         return;
     }
 
+    // Attempt to send the email
     if (!MailClient.sendMail(&smtp, &message)) {
         Serial.println("Error sending Email: " + smtp.errorReason());
     } else {

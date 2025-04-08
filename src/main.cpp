@@ -72,7 +72,7 @@ void loop() {
                                            "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
                                            "awais12pk@gmail.com",
                                            "Button Press Alert", 
-                                           "The button was pressed four times consecutively.");
+                                           "The button was pressed four times consecutively.", configRedPin);
             buttonPressCount = 0; // Reset counter after sending email
             buttonManager.resetConsecutivePressCount(); // Reset consecutive press count
         }

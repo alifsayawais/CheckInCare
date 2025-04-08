@@ -11,7 +11,7 @@ public:
     void sendEmail(const char* smtpHost, uint16_t smtpPort, 
                    const char* senderEmail, const char* senderPassword, 
                    const char* recipientEmail, const char* subject, 
-                   const char* content);
+                   const char* content, int configRedPin); // Added configRedPin
     void sendSMS(const String& message);
 
 private:

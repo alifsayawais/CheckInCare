@@ -108,7 +108,7 @@ void ButtonManager::checkButton() {
                         "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
                         "awais12pk@gmail.com",  
                         "Button Press Alert", 
-                        "The button was pressed four times consecutively.");
+                        "The button was pressed four times consecutively.", configRedPin);
                     
                     // Automatically release the button and reset the press count
                     buttonState = HIGH; // Simulate button release
