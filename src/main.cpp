@@ -3,7 +3,6 @@
 #include "ButtonManager.h"
 #include "NotificationManager.h"
 #include <EEPROM.h> // Include the EEPROM library
-#include <nvs_flash.h>
 
 // Define the SSID and password for the Access Point
 const char* ap_ssid = "ESP32-Access-Point";
@@ -24,6 +23,8 @@ const int buttonPin = 35; // Updated to GPIO 35
 WiFiManager wifiManager(ap_ssid, ap_password);
 ButtonManager buttonManager(buttonPin, redPin, bluePin, whitePin, configBluePin, configGreenPin, configRedPin, &wifiManager);
 NotificationManager* notificationManager;
+
+int buttonPressCount = 0; // Counter for button presses
 
 void setup() {
     Serial.begin(115200); // Initialize serial communication
@@ -58,4 +59,21 @@ void loop() {
 
     // Update button manager
     buttonManager.update();
+
+    // Check for button press and increment counter
+    if (buttonManager.isButtonPressed()) {
+        buttonPressCount++;
+        Serial.println("Button pressed: " + String(buttonPressCount));
+
+        // Check for four button presses
+        if (buttonPressCount >= 4) {
+            Serial.println("Button pressed four times. Sending email...");
+            notificationManager->sendEmail("smtp.gmail.com", 465, // Use SMTP port 465 for SSL
+                                           "your_email@gmail.com", "your_app_password", 
+                                           "recipient_email@example.com", 
+                                           "Button Press Alert", 
+                                           "The button was pressed four times.");
+            buttonPressCount = 0; // Reset counter after sending email
+        }
+    }
 }

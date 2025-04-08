@@ -2,16 +2,22 @@
 #define NOTIFICATION_MANAGER_H
 
 #include <Arduino.h>
+#include <WiFi.h>
+#include <ESP_Mail_Client.h>
 
 class NotificationManager {
 public:
     NotificationManager(const String& email, const String& phone);
-    void sendEmail(const String& subject, const String& body);
+    void sendEmail(const char* smtpHost, uint16_t smtpPort, 
+                   const char* senderEmail, const char* senderPassword, 
+                   const char* recipientEmail, const char* subject, 
+                   const char* content);
     void sendSMS(const String& message);
 
 private:
     String email;
     String phone;
+
     void setupSIM800();
 };
 

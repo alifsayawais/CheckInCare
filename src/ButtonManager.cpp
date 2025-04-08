@@ -2,7 +2,7 @@
 
 ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false) {}
+      lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), vacationModeStarted(false), wifiConnected(false), buttonPressed(false) {}
 
 void ButtonManager::begin() {
     pinMode(buttonPin, INPUT_PULLUP);
@@ -60,6 +60,7 @@ void ButtonManager::checkButton() {
                 lastPressTime = millis();
                 connectivityModeStarted = false; // Reset flag
                 vacationModeStarted = false; // Reset flag for vacation mode
+                buttonPressed = true; // Set button pressed flag
             } else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted && !vacationModeStarted) { // Button released before 3 seconds
                 Serial.println("Button released before 3 seconds");
                 resetTimer();
@@ -80,6 +81,7 @@ void ButtonManager::checkButton() {
         resetTimer();  // Ensure the timer is reset even during connectivity mode
         connectivityModeStarted = true; // Set flag
         vacationModeStarted = false; // Ensure vacation mode is not started
+        buttonPressed = true; // Set button pressed flag
     }
 
     lastButtonState = reading;
@@ -251,4 +253,10 @@ void ButtonManager::indicateConfigurationNeeded() {
     // Indicate that configuration is needed with a solid red LED
     setLED(configRedPin, true, true); // Turn on the red LED (active LOW)
     Serial.println("Configuration is needed.");
+}
+
+bool ButtonManager::isButtonPressed() {
+    bool wasPressed = buttonPressed;
+    buttonPressed = false; // Reset the flag after reading
+    return wasPressed;
 }

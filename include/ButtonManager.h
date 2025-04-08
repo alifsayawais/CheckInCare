@@ -9,8 +9,9 @@ public:
     ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager);
     void begin();
     void update();
-    void handleClient(); // Change the access specifier to public
-    
+    void handleClient();
+    bool isButtonPressed(); // Add this method
+
 private:
     int buttonPin;
     int redPin;
@@ -44,6 +45,7 @@ private:
     void startVacationMode();
     void tryConnectWiFi();
     void indicateConfigurationNeeded();
+    bool buttonPressed; // Add this member variable
 };
 
 #endif
