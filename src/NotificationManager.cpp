@@ -22,7 +22,10 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
     }
 
     // Configure configRedPin for LED blinking
-    pinMode(configRedPin, OUTPUT);
+    blinkPin = configRedPin;
+    pinMode(blinkPin, OUTPUT);
+    blinkStartTime = millis();
+    isBlinking = true;
 
     unsigned long blinkStart = millis();
     unsigned long blinkDuration = 5000;
@@ -68,6 +71,17 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
 
     message.clear();
     smtp.closeSession();
+}
+
+void NotificationManager::update() {
+    if (isBlinking) {
+        if (millis() - blinkStartTime < 5000) {
+            digitalWrite(blinkPin, (millis() % 200 < 100) ? LOW : HIGH);
+        } else {
+            digitalWrite(blinkPin, HIGH);
+            isBlinking = false;
+        }
+    }
 }
 
 void NotificationManager::sendSMS(const String& message) {

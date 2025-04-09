@@ -3,16 +3,21 @@
 
 #include <Arduino.h>
 #include <WiFiManager.h>
+#include <NotificationManager.h> // Include NotificationManager
 
 class ButtonManager {
 public:
-    ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager);
+    ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, 
+    int configBluePin, int configGreenPin, int configRedPin, 
+    WiFiManager* wifiManager, NotificationManager* notificationManager);
+
     void begin();
     void update();
     void handleClient();
     bool isButtonPressed(); // Add this method
     int getConsecutivePressCount(); // Add this method
     void resetConsecutivePressCount(); // Add this method
+    void setNotificationManager(NotificationManager* notificationManager);
 
 private:
     int buttonPin;
@@ -32,7 +37,10 @@ private:
     bool connectivityModeStarted;
     bool wifiConnected;
     bool vacationModeStarted;
+    
     WiFiManager* wifiManager;
+    NotificationManager* notificationManager;
+
     int consecutivePressCount; // Add this member variable
     unsigned long lastPressCheckTime; // Add this member variable
 

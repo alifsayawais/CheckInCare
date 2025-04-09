@@ -38,12 +38,16 @@ bool WiFiManager::isConfigured() {
 }
 
 void WiFiManager::handleRoot() {
-    server.send(200, "text/html", "<form action=\"/config\" method=\"POST\">"
-                                  "WiFi SSID: <input type=\"text\" name=\"ssid\"><br>"
-                                  "WiFi Password: <input type=\"text\" name=\"password\"><br>"
-                                  "Email: <input type=\"text\" name=\"email\"><br>"
-                                  "Phone: <input type=\"text\" name=\"phone\"><br>"
-                                  "<input type=\"submit\" value=\"Submit\"></form>");
+    server.send(200, "text/html", 
+        "<form action=\"/config\" method=\"POST\">"
+        "WiFi SSID: <input type=\"text\" name=\"ssid\"><br>"
+        "WiFi Password: <input type=\"text\" name=\"password\"><br>"
+        "Your Email: <input type=\"text\" name=\"email\"><br>"
+        "Phone: <input type=\"text\" name=\"phone\"><br>"
+        "Sender Email: <input type=\"text\" name=\"sender_email\"><br>"
+        "Sender Password: <input type=\"password\" name=\"sender_password\"><br>"
+        "Email Body: <textarea name=\"email_body\"></textarea><br>" // Add this line
+        "<input type=\"submit\" value=\"Submit\"></form>");
 }
 
 void WiFiManager::handleConfig() {
@@ -51,6 +55,9 @@ void WiFiManager::handleConfig() {
     password = server.arg("password");
     email = server.arg("email");
     phone = server.arg("phone");
+    senderEmail = server.arg("sender_email");
+    senderPassword = server.arg("sender_password");
+    emailBody = server.arg("email_body");
 
     // Store the configuration in NVS
     saveConfigToNVS();
@@ -63,6 +70,12 @@ void WiFiManager::handleConfig() {
     configured = true;
     server.send(200, "text/plain", "Configuration saved. You can close this window.");
 }
+
+
+// Add getters
+String WiFiManager::getSenderEmail() { return senderEmail; }
+String WiFiManager::getSenderPassword() { return senderPassword; }
+String WiFiManager::getEmailBody() {  return emailBody;   }
 
 void WiFiManager::handleNotFound() {
     server.send(404, "text/plain", "404: Not found");
@@ -102,6 +115,9 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("password", password);
     preferences.putString("email", email);
     preferences.putString("phone", phone);
+    preferences.putString("sender_email", senderEmail);
+    preferences.putString("sender_password", senderPassword);
+    preferences.putString("email_body", emailBody);
     preferences.end();
 }
 
@@ -111,6 +127,9 @@ void WiFiManager::loadConfigFromNVS() {
     password = preferences.getString("password", "");
     email = preferences.getString("email", "");
     phone = preferences.getString("phone", "");
+    senderEmail = preferences.getString("sender_email", "");
+    senderPassword = preferences.getString("sender_password", "");
+    emailBody = preferences.getString("email_body", "");
     preferences.end();
 
     // Check if configuration is valid

@@ -13,8 +13,13 @@ public:
                    const char* subject, const char* content, 
                    int configRedPin); // Removed recipientEmail
     void sendSMS(const String& message);
+    void update();
 
 private:
+    unsigned long blinkStartTime = 0;
+    bool isBlinking = false;
+    int blinkPin = -1;
+    
     String email;
     String phone;
 

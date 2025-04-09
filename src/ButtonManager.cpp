@@ -1,7 +1,8 @@
 #include "ButtonManager.h"
-#include <NotificationManager.h>
+#include "NotificationManager.h"
+#include "TimeUtils.h"
 
-ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager)
+ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
       lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0) {
     buttonPressed = false; // Initialize the button pressed flag
@@ -99,16 +100,23 @@ void ButtonManager::checkButton() {
                 lastPressCheckTime = millis();
 
                 // If 4 consecutive presses are detected, send the email
-                if (consecutivePressCount >= 4) {
+                if (consecutivePressCount >= 4) 
+                {
                     Serial.println("4 consecutive button presses detected. Sending email...");
-                    
+                    String emailBody = wifiManager->getEmailBody();
+                    if (emailBody.isEmpty()) 
+                    {
+                        emailBody = "The button was pressed four times consecutively."; // Default
+                    }
+                    emailBody +=  "\nPressed At: Current Time"; // Implement time function
                     // Call the email-sending function here
-                    NotificationManager notificationManager("your_email@gmail.com", "your_phone_number");
-                    notificationManager.sendEmail(
+                    notificationManager->sendEmail(
                         "smtp.gmail.com", 465, 
-                        "awais013pk@gmail.com", "xgdo uadb ffbu gbdf", 
+                        wifiManager->getSenderEmail().c_str(), 
+                        wifiManager->getSenderPassword().c_str(), 
                         "Button Press Alert", 
-                        "The button was pressed four times consecutively.", configRedPin);
+                        emailBody.c_str(),
+                        configRedPin );                
                     
                     // Automatically release the button and reset the press count
                     buttonState = HIGH; // Simulate button release
@@ -142,6 +150,10 @@ void ButtonManager::checkButton() {
 
 void ButtonManager::resetTimer() {
     lastPressTime = millis();
+}
+
+void ButtonManager::setNotificationManager(NotificationManager* notificationManager) {
+    this->notificationManager = notificationManager;
 }
 
 void ButtonManager::setButtonState(const char* state) {

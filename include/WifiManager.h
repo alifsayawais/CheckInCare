@@ -15,6 +15,12 @@ public:
     bool isConfigured();
     String getEmail();
     String getPhone();
+    String getEmailBody(); 
+
+    // Add sender credential getters
+    String getSenderEmail();
+    String getSenderPassword();
+
     void eraseConfig();
     String getSSID();
     String getPassword();
@@ -28,12 +34,16 @@ private:
     String password;
     String email;
     String phone;
+    String emailBody;
 
     void handleRoot();
     void handleNotFound();
     void handleConfig();
     void saveConfigToNVS(); // New method to save config to NVS
     void loadConfigFromNVS(); // New method to load config from NVS
+
+    String senderEmail;
+    String senderPassword;
 };
 
 #endif // WIFI_MANAGER_H

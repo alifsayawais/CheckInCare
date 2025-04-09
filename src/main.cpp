@@ -3,6 +3,8 @@
 #include "ButtonManager.h"
 #include "NotificationManager.h"
 #include <EEPROM.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 const char* ap_ssid = "ESP32-Access-Point";
 const char* ap_password = "12345678";
@@ -16,13 +18,22 @@ const int configRedPin = 17;
 
 const int buttonPin = 35;
 
+NotificationManager* notificationManager = nullptr;
 WiFiManager wifiManager(ap_ssid, ap_password);
-ButtonManager buttonManager(buttonPin, redPin, bluePin, whitePin, configBluePin, configGreenPin, configRedPin, &wifiManager);
-NotificationManager* notificationManager;
+ButtonManager buttonManager(buttonPin, redPin, bluePin, whitePin, configBluePin, configGreenPin, configRedPin, &wifiManager, notificationManager);
+
+// WiFiUDP ntpUDP;
+// NTPClient timeClient(ntpUDP, "pool.ntp.org");
+
+// String getCurrentTime() {
+//     timeClient.update();
+//     return timeClient.getFormattedTime(); // Returns "HH:MM:SS"
+// }
 
 int buttonPressCount = 0;
 
-void setup() {
+void setup() 
+{
     Serial.begin(115200);
 
     if (!EEPROM.begin(512)) {
@@ -39,16 +50,21 @@ void setup() {
         }
     }
 
+    // timeClient.begin();
+    // timeClient.setTimeOffset(0); // Adjust for your timezone (e.g., 3600 for UTC+1)
     buttonManager.begin();
 
     String email = wifiManager.getEmail();
     String phone = wifiManager.getPhone();
     notificationManager = new NotificationManager(email, phone);
+    buttonManager.setNotificationManager(notificationManager);
 }
 
-void loop() {
+void loop() 
+{
     buttonManager.handleClient();
     buttonManager.update();
+    notificationManager->update();
 
     if (buttonManager.isButtonPressed()) {
         buttonPressCount++;
