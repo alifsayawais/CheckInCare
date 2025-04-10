@@ -65,19 +65,5 @@ void loop()
     buttonManager.handleClient();
     buttonManager.update();
     notificationManager->update();
-
-    if (buttonManager.isButtonPressed()) {
-        buttonPressCount++;
-        Serial.println("Button pressed: " + String(buttonPressCount));
-
-        if (buttonManager.getConsecutivePressCount() >= 4) {
-            Serial.println("Button pressed four times consecutively. Sending email...");
-            notificationManager->sendEmail("smtp.gmail.com", 465,
-                                           "awais013pk@gmail.com", "xgdo uadb ffbu gbdf",
-                                           "Button Press Alert",
-                                           "The button was pressed four times consecutively.", configRedPin);
-            buttonPressCount = 0;
-            buttonManager.resetConsecutivePressCount();
-        }
-    }
 }
+
