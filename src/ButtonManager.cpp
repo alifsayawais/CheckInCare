@@ -293,16 +293,16 @@ void ButtonManager::tryConnectWiFi() {
         {
             Serial.println("WiFi connection failed. Retrying...");
             attempt++;
-            break;
         }
     }
 
-    // If both attempts fail, indicate failure with solid red LED
+    // If all attempts fail, indicate failure and switch to configuration mode
     Serial.println("WiFi connection failed after maximum attempts.");
     setLED(configRedPin, true, true); // Turn on the red LED (active LOW)
     wifiConnected = false;
-    apMode = false; // Disable access point mode
-    setLED(configBluePin, false, true); // Turn off the blue LED
+
+    // Automatically enter configuration mode after failure
+    startConnectivityMode();
 }
 
 void ButtonManager::indicateConfigurationNeeded() {
