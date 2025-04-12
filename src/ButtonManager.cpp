@@ -269,12 +269,14 @@ void ButtonManager::tryConnectWiFi() {
     Serial.println("SSID: " + ssid);
     Serial.println("Password: " + password);
 
-    while (attempt < maxAttempts) {
+    while (attempt < maxAttempts) 
+    {
         WiFi.begin(ssid.c_str(), password.c_str());
         unsigned long startAttemptTime = millis();
 
         // Indicate retry attempt with flashing blue LED rapidly
-        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) 
+        {
             setLED(configBluePin, !digitalRead(configBluePin), true); // Toggle blue LED rapidly
             delay(100);
             Serial.print(".");
@@ -286,9 +288,12 @@ void ButtonManager::tryConnectWiFi() {
             blinkConfigGreenLED(); // Blink the green LED five times rapidly to indicate successful connection
             setLED(configBluePin, false, true); // Ensure the blue LED is turned off
             return;
-        } else {
+        } 
+        else 
+        {
             Serial.println("WiFi connection failed. Retrying...");
             attempt++;
+            break;
         }
     }
 
