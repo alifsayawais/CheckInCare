@@ -66,4 +66,3 @@ void loop()
     buttonManager.update();
     notificationManager->update();
 }
-

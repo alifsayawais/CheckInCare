@@ -57,7 +57,9 @@ private:
     void startVacationMode();
     void tryConnectWiFi();
     void indicateConfigurationNeeded();
-    bool buttonPressed; // Add this member variable
+    bool buttonPressed;
+    bool emailSentForSolidRed;
+
 };
 
 #endif

@@ -4,7 +4,7 @@
 
 ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0) {
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false) {
     buttonPressed = false; // Initialize the button pressed flag
 }
 
@@ -108,7 +108,7 @@ void ButtonManager::checkButton() {
                     {
                         emailBody = "The button was pressed four times consecutively."; // Default
                     }
-                    emailBody +=  "\nPressed At: Current Time"; // Implement time function
+                    // emailBody +=  "\nPressed At: Current Time"; // Implement time function
                     // Call the email-sending function here
                     notificationManager->sendEmail(
                         "smtp.gmail.com", 465, 
@@ -187,7 +187,25 @@ void ButtonManager::handleButtonState() {
 
     if (elapsedTime >= pressInterval) {
         setButtonState("solid red");
-        // Add code to trigger email and SMS notifications
+        
+        // Check if email has already been sent for this state
+        if (!emailSentForSolidRed) {
+            // Send email
+            Serial.println("Sending email for solid red state...");
+            String emailBody = "The button has been in the solid red state.";
+            // emailBody += "\nTriggered At: Current Time"; // Use TimeUtils to get the current time
+            notificationManager->sendEmail(
+                "smtp.gmail.com", 465, 
+                wifiManager->getSenderEmail().c_str(), 
+                wifiManager->getSenderPassword().c_str(), 
+                "Solid Red Alert", 
+                emailBody.c_str(),
+                configRedPin
+            );
+
+            // Mark email as sent
+            emailSentForSolidRed = true;
+        }
     } else if (elapsedTime >= 10 * 60 * 60 * 1000) {
         setButtonState("flashing red");
     } else if (elapsedTime >= 8 * 60 * 60 * 1000) {

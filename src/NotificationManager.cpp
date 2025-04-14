@@ -30,13 +30,15 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
     unsigned long blinkStart = millis();
     unsigned long blinkDuration = 5000;
     bool ledState = false;
-
+    
     Serial.println("Blinking LED before sending email...");
-    while (millis() - blinkStart < blinkDuration) {
-        if (millis() % 200 < 100) {
-            ledState = !ledState;
-            digitalWrite(configRedPin, ledState ? LOW : HIGH);
-        }
+    pinMode(configRedPin, OUTPUT);
+    for (int i=0; i<10; i++)
+    {
+        digitalWrite(configRedPin, LOW);
+        delay(100);
+        digitalWrite(configRedPin, HIGH);
+        delay(100);
     }
 
     digitalWrite(configRedPin, HIGH);
