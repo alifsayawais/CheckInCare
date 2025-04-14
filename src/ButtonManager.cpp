@@ -4,7 +4,7 @@
 
 ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0) {
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0) {
     buttonPressed = false; // Initialize the button pressed flag
 }
 
@@ -188,9 +188,9 @@ void ButtonManager::handleButtonState() {
     if (elapsedTime >= pressInterval) {
         setButtonState("solid red");
         // Add code to trigger email and SMS notifications
-    } else if (elapsedTime >= 10 * 60 * 1000) {
+    } else if (elapsedTime >= 10 * 60 * 60 * 1000) {
         setButtonState("flashing red");
-    } else if (elapsedTime >= 8 * 60 * 1000) {
+    } else if (elapsedTime >= 8 * 60 * 60 * 1000) {
         setButtonState("blue");
     }
 }
