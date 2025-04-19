@@ -38,17 +38,67 @@ bool WiFiManager::isConfigured() {
 }
 
 void WiFiManager::handleRoot() {
-    server.send(200, "text/html", 
+    server.send(200, "text/html",
+        "<!DOCTYPE html>"
+        "<html lang=\"en\">"
+        "<head>"
+        "<meta charset=\"UTF-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+        "<title>Configuration Form</title>"
+        "<style>"
+        "body { font-family: Arial, sans-serif; background-color: #f7f7f7; margin: 0; padding: 0; }"
+        ".container { max-width: 600px; margin: 50px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }"
+        "h1 { text-align: center; color: #333; margin-bottom: 20px; }"
+        "form { display: flex; flex-direction: column; gap: 15px; }"
+        ".form-group { display: flex; flex-direction: column; }"
+        "label { font-weight: bold; margin-bottom: 5px; }"
+        "input, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 100%; box-sizing: border-box; }"
+        "textarea { resize: vertical; }"
+        "button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }"
+        "button:hover { background-color: #0056b3; }"
+        "</style>"
+        "</head>"
+        "<body>"
+        "<div class=\"container\">"
+        "<h1>WiFi Configuration</h1>"
         "<form action=\"/config\" method=\"POST\">"
-        "WiFi SSID: <input type=\"text\" name=\"ssid\"><br>"
-        "WiFi Password: <input type=\"text\" name=\"password\"><br>"
-        "Your Email: <input type=\"text\" name=\"email\"><br>"
-        "Phone: <input type=\"text\" name=\"phone\"><br>"
-        "Sender Email: <input type=\"text\" name=\"sender_email\"><br>"
-        "Sender Password: <input type=\"password\" name=\"sender_password\"><br>"
-        "Email Body: <textarea name=\"email_body\"></textarea><br>" // Add this line
-        "<input type=\"submit\" value=\"Submit\"></form>");
+        "<div class=\"form-group\">"
+        "<label for=\"ssid\">WiFi SSID</label>"
+        "<input type=\"text\" id=\"ssid\" name=\"ssid\" placeholder=\"Enter WiFi SSID\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"password\">WiFi Password</label>"
+        "<input type=\"password\" id=\"password\" name=\"password\" placeholder=\"Enter WiFi Password\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"email\">Recipient's Email</label>"
+        "<input type=\"email\" id=\"email\" name=\"email\" placeholder=\"Enter Recipient's Email\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"phone\">Phone</label>"
+        "<input type=\"text\" id=\"phone\" name=\"phone\" placeholder=\"Enter Phone Number\">"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"sender_email\">Sender Email</label>"
+        "<input type=\"email\" id=\"sender_email\" name=\"sender_email\" placeholder=\"Enter Sender Email\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"sender_password\">Sender Password</label>"
+        "<input type=\"password\" id=\"sender_password\" name=\"sender_password\" placeholder=\"Enter Sender Password\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"email_body\">Email Body</label>"
+        "<textarea id=\"email_body\" name=\"email_body\" rows=\"4\" placeholder=\"Enter Email Body\"></textarea>"
+        "</div>"
+        "<button type=\"submit\">Submit</button>"
+        "</form>"
+        "</div>"
+        "</body>"
+        "</html>");
 }
+
+
+
 
 void WiFiManager::handleConfig() {
     ssid = server.arg("ssid");
