@@ -24,6 +24,8 @@ public:
     void eraseConfig();
     String getSSID();
     String getPassword();
+    String getButtonTime();
+    String getTimeZone();
 
 private:
     const char* ap_ssid;
@@ -35,6 +37,8 @@ private:
     String email;
     String phone;
     String emailBody;
+    String buttonTime;
+    String timeZone;
 
     void handleRoot();
     void handleNotFound();

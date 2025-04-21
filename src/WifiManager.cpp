@@ -52,7 +52,7 @@ void WiFiManager::handleRoot() {
         "form { display: flex; flex-direction: column; gap: 15px; }"
         ".form-group { display: flex; flex-direction: column; }"
         "label { font-weight: bold; margin-bottom: 5px; }"
-        "input, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 100%; box-sizing: border-box; }"
+        "input, textarea, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 100%; box-sizing: border-box; }"
         "textarea { resize: vertical; }"
         "button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }"
         "button:hover { background-color: #0056b3; }"
@@ -90,14 +90,48 @@ void WiFiManager::handleRoot() {
         "<label for=\"email_body\">Email Body</label>"
         "<textarea id=\"email_body\" name=\"email_body\" rows=\"4\" placeholder=\"Enter Email Body\"></textarea>"
         "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"button_time\">Button Press Time</label>"
+        "<input type=\"time\" id=\"button_time\" name=\"button_time\" required>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"time_zone\">Time Zone</label>"
+        "<select id=\"time_zone\" name=\"time_zone\" required>"
+        "<option value=\"UTC-12\">UTC-12</option>"
+        "<option value=\"UTC-11\">UTC-11</option>"
+        "<option value=\"UTC-10\">UTC-10</option>"
+        "<option value=\"UTC-9\">UTC-9</option>"
+        "<option value=\"UTC-8\">UTC-8</option>"
+        "<option value=\"UTC-7\">UTC-7</option>"
+        "<option value=\"UTC-6\">UTC-6</option>"
+        "<option value=\"UTC-5\">UTC-5</option>"
+        "<option value=\"UTC-4\">UTC-4</option>"
+        "<option value=\"UTC-3\">UTC-3</option>"
+        "<option value=\"UTC-2\">UTC-2</option>"
+        "<option value=\"UTC-1\">UTC-1</option>"
+        "<option value=\"UTC\">UTC</option>"
+        "<option value=\"UTC+1\">UTC+1</option>"
+        "<option value=\"UTC+2\">UTC+2</option>"
+        "<option value=\"UTC+3\">UTC+3</option>"
+        "<option value=\"UTC+4\">UTC+4</option>"
+        "<option value=\"UTC+5\">UTC+5</option>"
+        "<option value=\"UTC+6\">UTC+6</option>"
+        "<option value=\"UTC+7\">UTC+7</option>"
+        "<option value=\"UTC+8\">UTC+8</option>"
+        "<option value=\"UTC+9\">UTC+9</option>"
+        "<option value=\"UTC+10\">UTC+10</option>"
+        "<option value=\"UTC+11\">UTC+11</option>"
+        "<option value=\"UTC+12\">UTC+12</option>"
+        "<option value=\"UTC+13\">UTC+13</option>"
+        "<option value=\"UTC+14\">UTC+14</option>"
+        "</select>"
+        "</div>"
         "<button type=\"submit\">Submit</button>"
         "</form>"
         "</div>"
         "</body>"
         "</html>");
 }
-
-
 
 
 void WiFiManager::handleConfig() {
@@ -108,6 +142,8 @@ void WiFiManager::handleConfig() {
     senderEmail = server.arg("sender_email");
     senderPassword = server.arg("sender_password");
     emailBody = server.arg("email_body");
+    buttonTime = server.arg("button_time");
+    timeZone = server.arg("time_zone");
 
     // Store the configuration in NVS
     saveConfigToNVS();
@@ -116,7 +152,9 @@ void WiFiManager::handleConfig() {
     Serial.println("Password: " + password);
     Serial.println("Email: " + email);
     Serial.println("Phone: " + phone);
-    
+    Serial.println("Button Time: " + buttonTime);
+    Serial.println("Time Zone: " + timeZone);
+
     configured = true;
     server.send(200, "text/plain", "Configuration saved. You can close this window.");
 }
@@ -159,6 +197,14 @@ String WiFiManager::getPhone() {
     return phone;
 }
 
+String WiFiManager::getButtonTime() { 
+    return buttonTime; 
+}
+
+String WiFiManager::getTimeZone() { 
+    return timeZone; 
+}
+
 void WiFiManager::saveConfigToNVS() {
     preferences.begin("wifi-config", false);
     preferences.putString("ssid", ssid);
@@ -168,6 +214,8 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("sender_email", senderEmail);
     preferences.putString("sender_password", senderPassword);
     preferences.putString("email_body", emailBody);
+    preferences.putString("button_time", buttonTime);
+    preferences.putString("time_zone", timeZone);
     preferences.end();
 }
 
@@ -180,6 +228,8 @@ void WiFiManager::loadConfigFromNVS() {
     senderEmail = preferences.getString("sender_email", "");
     senderPassword = preferences.getString("sender_password", "");
     emailBody = preferences.getString("email_body", "");
+    buttonTime = preferences.getString("button_time", "");
+    timeZone = preferences.getString("time_zone", "");
     preferences.end();
 
     // Check if configuration is valid
