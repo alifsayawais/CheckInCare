@@ -5,5 +5,5 @@
 #include <Arduino.h>
 
 String getCurrentTime(); // Declare the function
-
+void configureTimeZone(const String& timeZone); 
 #endif

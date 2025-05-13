@@ -7,7 +7,7 @@
 #include <WiFiUdp.h>
 #include <SD.h>
 #include <FS.h>
-
+#include <TimeUtils.h>
 
 #define MAIN_CODE     1
 #define AUDIO_CHECK   0
@@ -55,6 +55,13 @@ void setup()
     String phone = wifiManager.getPhone();
     notificationManager = new NotificationManager(email, phone);
     buttonManager.setNotificationManager(notificationManager);
+
+    // Set the time zone
+    String timeZone = wifiManager.getTimeZone();
+    configureTimeZone(timeZone);
+
+    // Log the current time
+    Serial.println("Current Time: " + getCurrentTime());
 }
 
 void loop() 
