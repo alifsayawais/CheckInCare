@@ -18,8 +18,13 @@ public:
     int getConsecutivePressCount(); // Add this method
     void resetConsecutivePressCount(); // Add this method
     void setNotificationManager(NotificationManager* notificationManager);
+    void setTargetTime(const String& time); // Set user-provided time
 
 private:
+    
+    String targetTime;
+    String currentState; 
+
     int buttonPin;
     int redPin;
     int bluePin;
@@ -27,10 +32,12 @@ private:
     int configBluePin;
     int configGreenPin;
     int configRedPin;
+
     unsigned long lastPressTime;
     unsigned long pressInterval;
     unsigned long debounceDelay;
     unsigned long lastDebounceTime;
+    
     bool lastButtonState;
     bool buttonState;
     bool apMode;
@@ -38,15 +45,16 @@ private:
     bool wifiConnected;
     bool vacationModeStarted;
     
+
     WiFiManager* wifiManager;
     NotificationManager* notificationManager;
 
-    int consecutivePressCount; // Add this member variable
-    unsigned long lastPressCheckTime; // Add this member variable
+    int consecutivePressCount; 
+    unsigned long lastPressCheckTime; 
 
     void checkButton();
     void resetTimer();
-    void setButtonState(const char* state);
+    void setButtonState(String state);
     void handleButtonState();
     void setLED(int pin, bool state, bool activeLow = false);
     void flashRedLED();
@@ -57,6 +65,7 @@ private:
     void startVacationMode();
     void tryConnectWiFi();
     void indicateConfigurationNeeded();
+    bool isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds);
     bool buttonPressed;
     bool emailSentForSolidRed;
 

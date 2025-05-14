@@ -6,6 +6,8 @@ ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePi
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
       lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false) {
     buttonPressed = false; // Initialize the button pressed flag
+    targetTime = "";
+    currentState = "default";
 }
 
 void ButtonManager::begin() {
@@ -156,62 +158,105 @@ void ButtonManager::setNotificationManager(NotificationManager* notificationMana
     this->notificationManager = notificationManager;
 }
 
-void ButtonManager::setButtonState(const char* state) {
-    if (strcmp(state, "off") == 0) {
-        setLED(whitePin, false);
-        setLED(bluePin, false);
-        setLED(redPin, false);
-    } else if (strcmp(state, "white") == 0) {
-        setLED(whitePin, true);
-        setLED(bluePin, false);
-        setLED(redPin, false);
-    } else if (strcmp(state, "blue") == 0) {
-        setLED(whitePin, false);
-        setLED(bluePin, true);
-        setLED(redPin, false);
-    } else if (strcmp(state, "flashing red") == 0) {
-        setLED(bluePin, false); // Turn off the Blue LED when flashing red starts
-        flashRedLED();
-    } else if (strcmp(state, "solid red") == 0) {
-        setLED(whitePin, false);
-        setLED(bluePin, false);
-        setLED(redPin, true);
+void ButtonManager::setButtonState(String state) 
+{
+    if (state == currentState) return; // Avoid redundant updates
+
+    currentState = state; // Update the current state
+
+    // Log the state change
+    Serial.println("Button state changed to: " + state);
+
+    if (state == "blue") {
+        digitalWrite(bluePin, HIGH);
+        digitalWrite(redPin, LOW);
+        digitalWrite(whitePin, LOW);
+    } else if (state == "flashingRed") {
+        digitalWrite(bluePin, LOW);
+        digitalWrite(redPin, millis() % 1000 < 500); // Flashing effect
+        digitalWrite(whitePin, LOW);
+    } else if (state == "solidRed") {
+        digitalWrite(bluePin, LOW);
+        digitalWrite(redPin, HIGH);
+        digitalWrite(whitePin, LOW);
     }
-    Serial.print("Button state: ");
-    Serial.println(state);
+    else if (state == "white")
+    {
+        digitalWrite(bluePin, LOW);
+        digitalWrite(redPin, LOW);
+        digitalWrite(whitePin, HIGH);
+    } 
+}
+
+bool ButtonManager::isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds) {
+    int currentHour, currentMinute, targetHour, targetMinute;
+    sscanf(currentTime.c_str(), "%d:%d", &currentHour, &currentMinute); // Parse current time
+    sscanf(targetTime.c_str(), "%d:%d", &targetHour, &targetMinute);   // Parse target time
+
+    time_t now = currentHour * 3600 + currentMinute * 60;
+    time_t target = targetHour * 3600 + targetMinute * 60;
+
+    double diff = difftime(target, now);
+    return diff <= rangeInSeconds && diff > 0;
+}
+
+void ButtonManager::setTargetTime(const String& time) {
+    targetTime = time;
 }
 
 void ButtonManager::handleButtonState() {
-    unsigned long currentTime = millis();
-    unsigned long elapsedTime = currentTime - lastPressTime;
+    if (targetTime == "") return; // No target time set
 
-    if (elapsedTime >= pressInterval) {
-        setButtonState("solid red");
-        
-        // Check if email has already been sent for this state
-        if (!emailSentForSolidRed) {
-            // Send email
-            Serial.println("Sending email for solid red state...");
-            String emailBody = "The button has been in the solid red state.";
-            // emailBody += "\nTriggered At: Current Time"; // Use TimeUtils to get the current time
-            notificationManager->sendEmail(
-                "smtp.gmail.com", 465, 
-                wifiManager->getSenderEmail().c_str(), 
-                wifiManager->getSenderPassword().c_str(), 
-                "Solid Red Alert", 
-                emailBody.c_str(),
-                configRedPin
-            );
+    // Get the current time (hour and minute)
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+    char currentTime[6];
+    strftime(currentTime, sizeof(currentTime), "%H:%M", &timeinfo);
 
-            // Mark email as sent
-            emailSentForSolidRed = true;
-        }
-    } else if (elapsedTime >= 10 * 60 * 60 * 1000) {
-        setButtonState("flashing red");
-    } else if (elapsedTime >= 8 * 60 * 60 * 1000) {
+    // Check and update button state based on time
+    if (isTimeWithinRange(String(currentTime), targetTime, 3600)) { // 1 hour (3600 seconds)
         setButtonState("blue");
+    } else if (isTimeWithinRange(String(currentTime), targetTime, 1800)) { // 30 minutes (1800 seconds)
+        setButtonState("flashingRed");
+    } else if (String(currentTime) == targetTime) { // Exact target time
+        setButtonState("solidRed");
     }
 }
+
+// void ButtonManager::handleButtonState() {
+//     unsigned long currentTime = millis();
+//     unsigned long elapsedTime = currentTime - lastPressTime;
+
+//     if (elapsedTime >= pressInterval) {
+//         setButtonState("solid red");
+        
+//         // Check if email has already been sent for this state
+//         if (!emailSentForSolidRed) {
+//             // Send email
+//             Serial.println("Sending email for solid red state...");
+//             String emailBody = "The button has been in the solid red state.";
+//             // emailBody += "\nTriggered At: Current Time"; // Use TimeUtils to get the current time
+//             notificationManager->sendEmail(
+//                 "smtp.gmail.com", 465, 
+//                 wifiManager->getSenderEmail().c_str(), 
+//                 wifiManager->getSenderPassword().c_str(), 
+//                 "Solid Red Alert", 
+//                 emailBody.c_str(),
+//                 configRedPin
+//             );
+
+//             // Mark email as sent
+//             emailSentForSolidRed = true;
+//         }
+//     } else if (elapsedTime >= 10 * 60 * 60 * 1000) {
+//         setButtonState("flashing red");
+//     } else if (elapsedTime >= 8 * 60 * 60 * 1000) {
+//         setButtonState("blue");
+//     }
+// }
 
 void ButtonManager::setLED(int pin, bool state, bool activeLow) {
     if (activeLow) {

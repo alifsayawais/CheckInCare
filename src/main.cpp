@@ -62,6 +62,10 @@ void setup()
 
     // Log the current time
     Serial.println("Current Time: " + getCurrentTime());
+
+    String userTime = wifiManager.getButtonTime(); // Replace with actual user input
+    buttonManager.setTargetTime(userTime);
+    Serial.println("Target Time Set: " + userTime);
 }
 
 void loop() 
