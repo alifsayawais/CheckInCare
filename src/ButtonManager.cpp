@@ -134,11 +134,15 @@ void ButtonManager::checkButton() {
                     buttonState = HIGH; // Simulate button release
                     consecutivePressCount = 0; // Reset the press count
                 }
-            } else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted && !vacationModeStarted) { // Button released before 3 seconds
+            } else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted && !vacationModeStarted) 
+            { // Button released before 3 seconds
                 Serial.println("Button released before 3 seconds");
                 resetTimer();
+                alarmSkipDate = getTodayDate();
+                Serial.println("Alarm skipped for today: " + alarmSkipDate);
                 setButtonState("white"); // Single press action
-            } else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
+            } 
+            else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
                 Serial.println("Button released after exactly 3 seconds");
                 startVacationMode();
                 resetTimer();  // Ensure the timer is reset even during vacation mode
@@ -171,10 +175,9 @@ void ButtonManager::setNotificationManager(NotificationManager* notificationMana
 void ButtonManager::setButtonState(String state) 
 {
     if (state == currentState) return; // Avoid redundant updates
-
+    
     // Log the state change
     Serial.println("Button state changed to: " + state);
-
     if (state == "blue") {
         digitalWrite(bluePin, HIGH);
         digitalWrite(redPin, LOW);
@@ -190,14 +193,12 @@ void ButtonManager::setButtonState(String state)
     }
     else if (state == "white")
     {
-        alarmSkipDate = getTodayDate();
-        Serial.println("Alarm skipped for today: " + alarmSkipDate);
         digitalWrite(bluePin, LOW);
         digitalWrite(redPin, LOW);
         digitalWrite(whitePin, HIGH);
     } 
-    currentState = state; // Update the current state
 
+    currentState = state; // Update the current state
 }
 
 bool ButtonManager::isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds) {
