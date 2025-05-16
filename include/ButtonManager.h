@@ -8,7 +8,7 @@
 class ButtonManager {
 public:
     ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, 
-    int configBluePin, int configGreenPin, int configRedPin, 
+    int configBluePin, int configGreenPin, int configRedPin,
     WiFiManager* wifiManager, NotificationManager* notificationManager);
 
     void begin();
@@ -19,11 +19,14 @@ public:
     void resetConsecutivePressCount(); // Add this method
     void setNotificationManager(NotificationManager* notificationManager);
     void setTargetTime(const String& time); // Set user-provided time
+    String getTodayDate();
 
 private:
     
     String targetTime;
     String currentState; 
+    String today;
+    String alarmSkipDate;
 
     int buttonPin;
     int redPin;

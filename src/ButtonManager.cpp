@@ -7,7 +7,17 @@ ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePi
       lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false) {
     buttonPressed = false; // Initialize the button pressed flag
     targetTime = "";
+    today = "";
+    alarmSkipDate = "";
     currentState = "default";
+}
+
+String ButtonManager::getTodayDate() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) return "";
+    char dateStr[11];
+    strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
+    return String(dateStr);
 }
 
 void ButtonManager::begin() {
@@ -162,8 +172,6 @@ void ButtonManager::setButtonState(String state)
 {
     if (state == currentState) return; // Avoid redundant updates
 
-    currentState = state; // Update the current state
-
     // Log the state change
     Serial.println("Button state changed to: " + state);
 
@@ -182,10 +190,14 @@ void ButtonManager::setButtonState(String state)
     }
     else if (state == "white")
     {
+        alarmSkipDate = getTodayDate();
+        Serial.println("Alarm skipped for today: " + alarmSkipDate);
         digitalWrite(bluePin, LOW);
         digitalWrite(redPin, LOW);
         digitalWrite(whitePin, HIGH);
     } 
+    currentState = state; // Update the current state
+
 }
 
 bool ButtonManager::isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds) {
@@ -204,9 +216,16 @@ void ButtonManager::setTargetTime(const String& time) {
     targetTime = time;
 }
 
-void ButtonManager::handleButtonState() {
+void ButtonManager::handleButtonState() 
+{
     if (targetTime == "") return; // No target time set
-
+    today = getTodayDate();
+    
+    if (alarmSkipDate == today)
+    {
+        setButtonState("white");
+        return;
+    }
     // Get the current time (hour and minute)
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
