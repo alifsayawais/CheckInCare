@@ -100,7 +100,7 @@ void ButtonManager::checkButton() {
                 Serial.println("Button pressed");
                 lastPressTime = millis();
                 connectivityModeStarted = false; // Reset flag
-                vacationModeStarted = false; // Reset flag for vacation mode
+                // vacationModeStarted = false; // Reset flag for vacation mode
                 buttonPressed = true; // Set button pressed flag
 
                 // Check for consecutive presses within 0.4 seconds
@@ -134,16 +134,25 @@ void ButtonManager::checkButton() {
                     buttonState = HIGH; // Simulate button release
                     consecutivePressCount = 0; // Reset the press count
                 }
-            } else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted && !vacationModeStarted) 
-            { // Button released before 3 seconds
+            } 
+            else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted) 
+            {
                 Serial.println("Button released before 3 seconds");
                 resetTimer();
+                Serial.print("Vacation mode flag before exit: ");
+                Serial.println(vacationModeStarted);
+                if (vacationModeStarted) {
+                    vacationModeStarted = false;
+                    Serial.println("Vacation mode exited due to short press.");
+                    setLED(bluePin, false); // or whatever resets your vacation LED
+                }
                 alarmSkipDate = getTodayDate();
                 Serial.println("Alarm skipped for today: " + alarmSkipDate);
-                setButtonState("white"); // Single press action
-            } 
+                setButtonState("white"); // Single press action (will do nothing if already white)
+            }
             else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
                 Serial.println("Button released after exactly 3 seconds");
+                Serial.println("Setting vacationModeStarted to true");
                 startVacationMode();
                 resetTimer();  // Ensure the timer is reset even during vacation mode
                 vacationModeStarted = true; // Set flag
@@ -336,7 +345,8 @@ void ButtonManager::startConnectivityMode() {
     Serial.println("Connectivity mode started. Access point is up.");
 }
 
-void ButtonManager::startVacationMode() {
+void ButtonManager::startVacationMode() 
+{
     setLED(bluePin, true); // Turn on the blue LED to indicate vacation mode
     Serial.println("Vacation mode started. Device is in sleep mode.");
     // Add any additional logic for vacation/sleep mode here
