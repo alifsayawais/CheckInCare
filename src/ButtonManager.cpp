@@ -120,8 +120,7 @@ void ButtonManager::checkButton() {
                     {
                         emailBody = "The button was pressed four times consecutively."; // Default
                     }
-                    // emailBody +=  "\nPressed At: Current Time"; // Implement time function
-                    // Call the email-sending function here
+
                     notificationManager->sendEmail(
                         "smtp.gmail.com", 465, 
                         wifiManager->getSenderEmail().c_str(), 
@@ -129,6 +128,15 @@ void ButtonManager::checkButton() {
                         "Button Press Alert", 
                         emailBody.c_str(),
                         configRedPin );                
+                    
+
+                    notificationManager->sendSMS(
+                    "ACf421c9e76d3e2c2914b1138c3c03b214",
+                    "3191032e644e74a85330048875eb1ea0",
+                    "+18449893949",   // must be in E.164 format, e.g., "+1234567890"
+                    wifiManager->getPhone(),   // must be in E.164 format, e.g., "+1987654321"
+                    wifiManager->getEmailBody()   
+                    );
                     
                     // Automatically release the button and reset the press count
                     buttonState = HIGH; // Simulate button release
@@ -271,6 +279,14 @@ void ButtonManager::handleButtonState()
             // Mark email as sent
             emailSentForSolidRed = true;
         }
+
+        notificationManager->sendSMS(
+            "ACf421c9e76d3e2c2914b1138c3c03b214",
+            "3191032e644e74a85330048875eb1ea0",
+            "+18449893949",   // must be in E.164 format, e.g., "+1234567890"
+            wifiManager->getPhone(),   // must be in E.164 format, e.g., "+1987654321"
+            wifiManager->getEmailBody()   
+        );
     }
 }
 

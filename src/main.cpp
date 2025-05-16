@@ -55,7 +55,6 @@ void setup()
     String phone = wifiManager.getPhone();
     notificationManager = new NotificationManager(email, phone);
     buttonManager.setNotificationManager(notificationManager);
-
     // Set the time zone
     String timeZone = wifiManager.getTimeZone();
     configureTimeZone(timeZone);
@@ -75,8 +74,6 @@ void loop()
     notificationManager->update();
 }
 #endif
-
-
 
 
 

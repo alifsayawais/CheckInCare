@@ -86,7 +86,7 @@ void NotificationManager::update() {
     }
 }
 
-void NotificationManager::sendSMS(const String& message) {
+void NotificationManager::sendSMS_SIM800(const String& message) {
     setupSIM800();
     Serial.println("Sending SMS:");
     Serial.println("Message: " + message);
@@ -94,4 +94,30 @@ void NotificationManager::sendSMS(const String& message) {
 
 void NotificationManager::setupSIM800() {
     Serial.println("Setting up SIM800...");
+}
+
+bool NotificationManager::sendSMS(const String& accountSID, const String& authToken, const String& fromNumber, const String& toNumber, const String& body) {
+    String url = "https://api.twilio.com/2010-04-01/Accounts/" + accountSID + "/Messages.json";
+    String postData = "To=" + toNumber + "&From=" + fromNumber + "&Body=" + body;
+    String auth = accountSID + ":" + authToken;
+    String encodedAuth = base64::encode(auth);
+
+    WiFiClientSecure client;
+    client.setInsecure(); // For simplicity; for production, use the Twilio root cert
+
+    HTTPClient https;
+    https.begin(client, url);
+    https.addHeader("Authorization", "Basic " + encodedAuth);
+    https.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    int httpResponseCode = https.POST(postData);
+    String response = https.getString();
+    https.end();
+
+    Serial.print("Twilio SMS Response Code: ");
+    Serial.println(httpResponseCode);
+    Serial.print("Twilio SMS Response: ");
+    Serial.println(response);
+
+    return (httpResponseCode >= 200 && httpResponseCode < 300);
 }
