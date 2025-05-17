@@ -132,7 +132,7 @@ void ButtonManager::checkButton() {
 
                     notificationManager->sendSMS(
                     "ACf421c9e76d3e2c2914b1138c3c03b214",
-                    "3191032e644e74a85330048875eb1ea0",
+                    wifiManager->getAuthToken(),
                     "+18449893949",   // must be in E.164 format, e.g., "+1234567890"
                     wifiManager->getPhone(),   // must be in E.164 format, e.g., "+1987654321"
                     wifiManager->getEmailBody()   

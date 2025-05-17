@@ -86,6 +86,11 @@ void WiFiManager::handleRoot() {
         "<label for=\"sender_password\">Sender Password</label>"
         "<input type=\"password\" id=\"sender_password\" name=\"sender_password\" placeholder=\"Enter Sender Password\" required>"
         "</div>"
+        "</div>"
+        "<div class=\"form-group\">"
+        "<label for=\"auth_token\">Auth Token</label>"
+        "<input type=\"text\" id=\"auth_token\" name=\"auth_token\" placeholder=\"Enter Twilio Auth Token\" required>"
+        "</div>"
         "<div class=\"form-group\">"
         "<label for=\"email_body\">Message</label>"
         "<textarea id=\"email_body\" name=\"email_body\" rows=\"4\" placeholder=\"Enter Message Body\"></textarea>"
@@ -144,6 +149,7 @@ void WiFiManager::handleConfig() {
     emailBody = server.arg("email_body");
     buttonTime = server.arg("button_time");
     timeZone = server.arg("time_zone");
+    authToken = server.arg("auth_token");
 
     // Store the configuration in NVS
     saveConfigToNVS();
@@ -205,6 +211,10 @@ String WiFiManager::getTimeZone() {
     return timeZone; 
 }
 
+String WiFiManager::getAuthToken() {
+    return authToken;
+}
+
 void WiFiManager::saveConfigToNVS() {
     preferences.begin("wifi-config", false);
     preferences.putString("ssid", ssid);
@@ -216,6 +226,7 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("email_body", emailBody);
     preferences.putString("button_time", buttonTime);
     preferences.putString("time_zone", timeZone);
+    preferences.putString("auth_token",authToken);
     preferences.end();
 }
 
@@ -230,6 +241,7 @@ void WiFiManager::loadConfigFromNVS() {
     emailBody = preferences.getString("email_body", "");
     buttonTime = preferences.getString("button_time", "");
     timeZone = preferences.getString("time_zone", "");
+    authToken = preferences.getString("auth_token","");
     preferences.end();
 
     // Check if configuration is valid

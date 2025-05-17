@@ -26,6 +26,7 @@ public:
     String getPassword();
     String getButtonTime();
     String getTimeZone();
+    String getAuthToken();
 
 private:
     const char* ap_ssid;
@@ -39,6 +40,7 @@ private:
     String emailBody;
     String buttonTime;
     String timeZone;
+    String authToken;
 
     void handleRoot();
     void handleNotFound();
