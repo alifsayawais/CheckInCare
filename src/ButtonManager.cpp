@@ -282,9 +282,9 @@ void ButtonManager::handleButtonState()
 
         notificationManager->sendSMS(
             "ACf421c9e76d3e2c2914b1138c3c03b214",
-            "3191032e644e74a85330048875eb1ea0",
-            "+18449893949",   // must be in E.164 format, e.g., "+1234567890"
-            wifiManager->getPhone(),   // must be in E.164 format, e.g., "+1987654321"
+            wifiManager->getAuthToken(),
+            "+18449893949",             // Sender  must be in E.164 format, e.g., "+1234567890"
+            wifiManager->getPhone(),   // Receiver must be in E.164 format, e.g., "+1987654321"
             wifiManager->getEmailBody()   
         );
     }
@@ -341,7 +341,7 @@ void ButtonManager::blinkConfigGreenLED() {
 
 void ButtonManager::startConnectivityMode() {
     apMode = true;
-    wifiManager->eraseConfig(); // Erase previous configuration
+    wifiManager->eraseConfig();         // Erase previous configuration
     wifiManager->begin();
     setLED(configBluePin, true, true); // Start flashing blue LED (active LOW)
     setLED(configRedPin, false, true); // Turn off the red LED (active LOW)
