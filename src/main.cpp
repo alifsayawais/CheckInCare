@@ -16,7 +16,7 @@
 
 #if MAIN_CODE == 1
 const char* ap_ssid = "ESP32-Access-Point";
-const char* ap_password = "12345678";
+const char* ap_password = "123456789";
 const int redPin = 10;
 const int bluePin = 47;
 const int whitePin = 48;
