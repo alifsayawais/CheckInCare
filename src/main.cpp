@@ -30,7 +30,6 @@ NotificationManager* notificationManager = nullptr;
 WiFiManager wifiManager(ap_ssid, ap_password);
 ButtonManager buttonManager(buttonPin, redPin, bluePin, whitePin, configBluePin, configGreenPin, configRedPin, &wifiManager, notificationManager);
 
-int buttonPressCount = 0;
 
 void setup() 
 {

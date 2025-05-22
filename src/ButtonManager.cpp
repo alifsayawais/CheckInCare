@@ -4,7 +4,7 @@
 
 ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false) {
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false) {
     buttonPressed = false; // Initialize the button pressed flag
     targetTime = "";
     today = "";
@@ -47,20 +47,28 @@ void ButtonManager::begin() {
     }
 }
 
-void ButtonManager::update() {
+void ButtonManager::update() 
+{
     checkButton();
     handleButtonState();
 
-    if (apMode) {
+    if (apMode) 
+    {
         flashConfigBlueLED();
     }
 
-    if (!wifiConnected && !apMode) {
+    if (!wifiConnected && !apMode) 
+    {
         flashConfigRedLED();
     }
 
+    // Handle red LED flashing for flashingRed state
+    if (currentState == "flashingRed") {
+        flashRedLED();
+    }
     // Reset the press count if the interval exceeds 400 ms
-    if (millis() - lastPressCheckTime >= 400) {
+    if (millis() - lastPressCheckTime >= 400) 
+    {
         resetConsecutivePressCount();
     }
 }
@@ -191,31 +199,40 @@ void ButtonManager::setNotificationManager(NotificationManager* notificationMana
 
 void ButtonManager::setButtonState(String state) 
 {
-    if (state == currentState) return; // Avoid redundant updates
-    
-    // Log the state change
+    if (state == currentState) return;
+
     Serial.println("Button state changed to: " + state);
-    if (state == "blue") {
+    if (state == "blue") 
+    {
         digitalWrite(bluePin, HIGH);
         digitalWrite(redPin, LOW);
         digitalWrite(whitePin, LOW);
-    } else if (state == "flashingRed") {
+    } 
+    else if (state == "flashingRed") 
+    {
         digitalWrite(bluePin, LOW);
-        digitalWrite(redPin, millis() % 1000 < 500); // Flashing effect
         digitalWrite(whitePin, LOW);
-    } else if (state == "solidRed") {
+        // Do not toggle redPin or delay here; handled in update()
+    } 
+    else if (state == "solidRed") 
+    {
         digitalWrite(bluePin, LOW);
-        digitalWrite(redPin, HIGH);
+        digitalWrite(redPin,  HIGH);
         digitalWrite(whitePin, LOW);
     }
     else if (state == "white")
     {
         digitalWrite(bluePin, LOW);
-        digitalWrite(redPin, LOW);
+        digitalWrite(redPin,  LOW);
         digitalWrite(whitePin, HIGH);
     } 
 
-    currentState = state; // Update the current state
+    // Turn off flashing LED when leaving flashingRed
+    if (currentState == "flashingRed" && state != "flashingRed") {
+        digitalWrite(redPin, LOW);
+    }
+
+    currentState = state;
 }
 
 bool ButtonManager::isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds) {
@@ -253,12 +270,7 @@ void ButtonManager::handleButtonState()
     char currentTime[6];
     strftime(currentTime, sizeof(currentTime), "%H:%M", &timeinfo);
 
-    // Check and update button state based on time
-    if (isTimeWithinRange(String(currentTime), targetTime, 3600)) { // 1 hour (3600 seconds)
-        setButtonState("blue");
-    } else if (isTimeWithinRange(String(currentTime), targetTime, 1800)) { // 30 minutes (1800 seconds)
-        setButtonState("flashingRed");
-    } else if (String(currentTime) == targetTime) 
+    if (String(currentTime) == targetTime) 
     { // Exact target time
         setButtonState("solidRed");
         // Check if email has already been sent for this state
@@ -267,7 +279,6 @@ void ButtonManager::handleButtonState()
             // Send email
             Serial.println("Sending email for solid red state...");
             String emailBody = "The button has been in the solid red state.";
-            // emailBody += "\nTriggered At: Current Time"; // Use TimeUtils to get the current time
             notificationManager->sendEmail(
                 "smtp.gmail.com", 465, 
                 wifiManager->getSenderEmail().c_str(), 
@@ -280,16 +291,58 @@ void ButtonManager::handleButtonState()
             emailSentForSolidRed = true;
         }
 
-        notificationManager->sendSMS(
+        if (!messageSent)
+        {
+            notificationManager->sendSMS(
             "ACf421c9e76d3e2c2914b1138c3c03b214",
             wifiManager->getAuthToken(),
-            "+18449893949",             // Sender  must be in E.164 format, e.g., "+1234567890"
+            "+18449893949",             // Sender must be in E.164 format, e.g., "+1234567890"
             wifiManager->getPhone(),   // Receiver must be in E.164 format, e.g., "+1987654321"
             wifiManager->getEmailBody()   
         );
+        messageSent = true;
+        }
+    }
+    else if (isTimeWithinRange(String(currentTime), targetTime, 1800)) { // 30 minutes 
+        setButtonState("flashingRed");
+    }
+    else if (isTimeWithinRange(String(currentTime), targetTime, 3600)) { // 1 hour
+        setButtonState("blue");
     }
 }
 
+void ButtonManager::printTimeLeftToAlarm() 
+{
+    // Get current time
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+    char currentTimeStr[6];
+    strftime(currentTimeStr, sizeof(currentTimeStr), "%H:%M", &timeinfo);
+
+    // Parse current time
+    int currentHour, currentMinute, targetHour, targetMinute;
+    sscanf(currentTimeStr, "%d:%d", &currentHour, &currentMinute);
+    sscanf(targetTime.c_str(), "%d:%d", &targetHour, &targetMinute);
+
+    // Convert times to minutes
+    int nowMinutes = currentHour * 60 + currentMinute;
+    int targetMinutes = targetHour * 60 + targetMinute;
+
+    int diff = targetMinutes - nowMinutes;
+
+    if (diff < 0) {
+        Serial.println("Alarm time has already passed for today.");
+        return;
+    }
+
+    int hoursLeft = diff / 60;
+    int minutesLeft = diff % 60;
+
+    Serial.printf("Time left until alarm: %d hour(s) and %d minute(s)\n", hoursLeft, minutesLeft);
+}
 
 void ButtonManager::setLED(int pin, bool state, bool activeLow) {
     if (activeLow) {
@@ -415,3 +468,4 @@ int ButtonManager::getConsecutivePressCount() {
 void ButtonManager::resetConsecutivePressCount() {
     consecutivePressCount = 0;
 }
+

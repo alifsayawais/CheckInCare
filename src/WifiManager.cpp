@@ -206,6 +206,8 @@ void WiFiManager::handleConfig()
 
     configured = true;
     server.send(200, "text/plain", "Configuration saved. You can close this window.");
+    delay(1000);
+    ESP.restart();
 }
 
 
@@ -218,16 +220,9 @@ void WiFiManager::handleNotFound() {
     server.send(404, "text/plain", "404: Not found");
 }
 
-void WiFiManager::eraseConfig() {
-    //preferences.begin("wifi-config", false);
-    //preferences.clear();
-    //preferences.end();
-    //Serial.println("Previous configuration erased.");
+void WiFiManager::eraseConfig() 
+{
     configured = false;
-    //ssid = "";
-    //password = "";
-    //email = "";
-    //phone = "";
 }
 
 String WiFiManager::getSSID() {

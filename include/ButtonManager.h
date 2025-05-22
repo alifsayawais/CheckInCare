@@ -20,6 +20,7 @@ public:
     void setNotificationManager(NotificationManager* notificationManager);
     void setTargetTime(const String& time); // Set user-provided time
     String getTodayDate();
+    void printTimeLeftToAlarm();
 
 private:
     
@@ -71,6 +72,7 @@ private:
     bool isTimeWithinRange(const String& currentTime, const String& targetTime, int rangeInSeconds);
     bool buttonPressed;
     bool emailSentForSolidRed;
+    bool messageSent;
 
 };
 
