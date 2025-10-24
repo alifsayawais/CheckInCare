@@ -14,7 +14,7 @@ public:
     void sendEmail(const char* smtpHost, uint16_t smtpPort, 
                    const char* senderEmail, const char* senderPassword, 
                    const char* subject, const char* content, 
-                   int configRedPin); // Removed recipientEmail
+                   int configRedLED); // Removed recipientEmail
     void sendSMS_SIM800(const String& message);
     void update();
     bool sendSMS(const String& accountSID, 

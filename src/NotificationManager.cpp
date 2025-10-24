@@ -9,7 +9,7 @@ NotificationManager::NotificationManager(const String& email, const String& phon
 void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort, 
                                     const char* senderEmail, const char* senderPassword, 
                                     const char* subject, const char* content, 
-                                    int configRedPin) { // Removed recipientEmail
+                                    int configRedLED) { // Removed recipientEmail
     SMTPSession smtp;
     SMTP_Message message;
 
@@ -21,8 +21,8 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
         return;
     }
 
-    // Configure configRedPin for LED blinking
-    blinkPin = configRedPin;
+    // Configure configRedLED for LED blinking
+    blinkPin = configRedLED;
     pinMode(blinkPin, OUTPUT);
     blinkStartTime = millis();
     isBlinking = true;
@@ -32,16 +32,16 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
     bool ledState = false;
     
     Serial.println("Blinking LED before sending email...");
-    pinMode(configRedPin, OUTPUT);
+    pinMode(configRedLED, OUTPUT);
     for (int i=0; i<10; i++)
     {
-        digitalWrite(configRedPin, LOW);
+        digitalWrite(configRedLED, LOW);
         delay(100);
-        digitalWrite(configRedPin, HIGH);
+        digitalWrite(configRedLED, HIGH);
         delay(100);
     }
 
-    digitalWrite(configRedPin, HIGH);
+    digitalWrite(configRedLED, HIGH);
 
     // Configure SMTP server
     ESP_Mail_Session session;

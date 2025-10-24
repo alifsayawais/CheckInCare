@@ -49,12 +49,29 @@ void WiFiManager::handleRoot() {
     "h1 { text-align: center; color: #333; margin-bottom: 20px; }"
     "form { display: flex; flex-direction: column; gap: 15px; }"
     ".form-group { display: flex; flex-direction: column; }"
+    ".password-container { position: relative; display: flex; align-items: center; }"
+    ".password-toggle { position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #007bff; font-size: 14px; padding: 0; }"
+    ".password-toggle:hover { color: #0056b3; }"
     "label { font-weight: bold; margin-bottom: 5px; }"
     "input, textarea, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 100%; box-sizing: border-box; }"
+    "input[type='password'], input[type='text'] { padding-right: 50px; }"
     "textarea { resize: vertical; }"
     "button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }"
     "button:hover { background-color: #0056b3; }"
     "</style>"
+    "<script>"
+    "function togglePassword(fieldId, buttonId) {"
+    "  var field = document.getElementById(fieldId);"
+    "  var button = document.getElementById(buttonId);"
+    "  if (field.type === 'password') {"
+    "    field.type = 'text';"
+    "    button.textContent = 'Hide';"
+    "  } else {"
+    "    field.type = 'password';"
+    "    button.textContent = 'Show';"
+    "  }"
+    "}"
+    "</script>"
     "</head>"
     "<body>"
     "<div class=\"container\">"
@@ -68,7 +85,10 @@ void WiFiManager::handleRoot() {
 
     "<div class=\"form-group\">"
     "<label for=\"password\">WiFi Password</label>"
+    "<div class=\"password-container\">"
     "<input type=\"password\" id=\"password\" name=\"password\" placeholder=\"Enter WiFi Password\" value=\"" + password + "\">"
+    "<button type=\"button\" class=\"password-toggle\" id=\"toggle-password\" onclick=\"togglePassword('password', 'toggle-password')\">Show</button>"
+    "</div>"
     "</div>"
 
     "<div class=\"form-group\">"
@@ -88,12 +108,20 @@ void WiFiManager::handleRoot() {
 
     "<div class=\"form-group\">"
     "<label for=\"sender_password\">Sender Password</label>"
+    "<div class=\"password-container\">"
     "<input type=\"password\" id=\"sender_password\" name=\"sender_password\" placeholder=\"Enter Sender Password\" value=\"" + senderPassword + "\">"
+    "<button type=\"button\" class=\"password-toggle\" id=\"toggle-sender-password\" onclick=\"togglePassword('sender_password', 'toggle-sender-password')\">Show</button>"
+    "</div>"
     "</div>"
 
     "<div class=\"form-group\">"
     "<label for=\"auth_token\">Auth Token</label>"
     "<input type=\"text\" id=\"auth_token\" name=\"auth_token\" placeholder=\"Enter Twilio Auth Token\" value=\"" + authToken + "\">"
+    "</div>"
+
+    "<div class=\"form-group\">"
+    "<label for=\"email_subject\">Email Subject</label>"
+    "<input type=\"text\" id=\"email_subject\" name=\"email_subject\" placeholder=\"Enter Email Subject\" value=\"" + emailSubject + "\">"
     "</div>"
 
     "<div class=\"form-group\">"
@@ -194,6 +222,9 @@ void WiFiManager::handleConfig()
     incoming = server.arg("auth_token");
     if (!incoming.isEmpty()) authToken = incoming;
 
+    incoming = server.arg("email_subject");
+    if (!incoming.isEmpty()) emailSubject = incoming;
+
     // Save merged config
     saveConfigToNVS();
 
@@ -215,6 +246,7 @@ void WiFiManager::handleConfig()
 String WiFiManager::getSenderEmail() { return senderEmail; }
 String WiFiManager::getSenderPassword() { return senderPassword; }
 String WiFiManager::getEmailBody() {  return emailBody;   }
+String WiFiManager::getEmailSubject() { return emailSubject; }
 
 void WiFiManager::handleNotFound() {
     server.send(404, "text/plain", "404: Not found");
@@ -262,6 +294,7 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("sender_email", senderEmail);
     preferences.putString("sender_password", senderPassword);
     preferences.putString("email_body", emailBody);
+    preferences.putString("email_subject", emailSubject);
     preferences.putString("button_time", buttonTime);
     preferences.putString("time_zone", timeZone);
     preferences.putString("auth_token",authToken);
@@ -277,6 +310,7 @@ void WiFiManager::loadConfigFromNVS() {
     senderEmail = preferences.getString("sender_email", "");
     senderPassword = preferences.getString("sender_password", "");
     emailBody = preferences.getString("email_body", "");
+    emailSubject = preferences.getString("email_subject", "Alert");
     buttonTime = preferences.getString("button_time", "");
     timeZone = preferences.getString("time_zone", "");
     authToken = preferences.getString("auth_token","");

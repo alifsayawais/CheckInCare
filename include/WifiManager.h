@@ -16,6 +16,7 @@ public:
     String getEmail();
     String getPhone();
     String getEmailBody(); 
+    String getEmailSubject();
 
     // Add sender credential getters
     String getSenderEmail();
@@ -38,6 +39,7 @@ private:
     String email;
     String phone;
     String emailBody;
+    String emailSubject;
     String buttonTime;
     String timeZone;
     String authToken;

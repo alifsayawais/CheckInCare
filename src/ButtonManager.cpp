@@ -2,9 +2,9 @@
 #include "NotificationManager.h"
 #include "TimeUtils.h"
 
-ButtonManager::ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, int configBluePin, int configGreenPin, int configRedPin, WiFiManager* wifiManager, NotificationManager* notificationManager)
-    : buttonPin(buttonPin), redPin(redPin), bluePin(bluePin), whitePin(whitePin), configBluePin(configBluePin), configGreenPin(configGreenPin), configRedPin(configRedPin),
-      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false) {
+ButtonManager::ButtonManager(int mainButton, int configBlueLED, int configGreenLED, int configRedLED, WiFiManager* wifiManager, NotificationManager* notificationManager)
+    : mainButton(mainButton), configBlueLED(configBlueLED), configGreenLED(configGreenLED), configRedLED(configRedLED),
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), validPressStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false) {
     buttonPressed = false; // Initialize the button pressed flag
     targetTime = "";
     today = "";
@@ -21,21 +21,22 @@ String ButtonManager::getTodayDate() {
 }
 
 void ButtonManager::begin() {
-    pinMode(buttonPin, INPUT_PULLUP);
-    pinMode(redPin, OUTPUT);
-    pinMode(bluePin, OUTPUT);
-    pinMode(whitePin, OUTPUT);
-    pinMode(configBluePin, OUTPUT);
-    pinMode(configGreenPin, OUTPUT);
-    pinMode(configRedPin, OUTPUT);
+    pinMode(mainButton, INPUT_PULLUP);
+    pinMode(configBlueLED, OUTPUT);
+    pinMode(configGreenLED, OUTPUT);
+    pinMode(configRedLED, OUTPUT);
 
-    // Ensure all LEDs are off initially
-    setLED(whitePin, false);
-    setLED(bluePin, false);
-    setLED(redPin, false);
-    setLED(configBluePin, false, true);
-    setLED(configGreenPin, false, true);
-    setLED(configRedPin, false, true);
+    // Ensure all config LEDs are off initially
+    setLED(configBlueLED, false, true);
+    setLED(configGreenLED, false, true);
+    setLED(configRedLED, false, true);
+    
+    // Initialize button state and timing to prevent false triggers at startup
+    delay(100); // Allow pin to stabilize
+    buttonState = digitalRead(mainButton);
+    lastButtonState = buttonState;
+    lastPressTime = millis(); // Set initial press time to current time
+    lastDebounceTime = millis();
 
     // Check for previous configuration and attempt to connect to WiFi
     if (!wifiManager->getSSID().isEmpty()) {
@@ -79,7 +80,7 @@ void ButtonManager::handleClient() {
     // Check if configuration is done
     if (wifiManager->isConfigured() && !wifiConnected) {
         apMode = false;
-        setLED(configBluePin, false, true); // Turn off the flashing blue LED (active LOW)
+        setLED(configBlueLED, false, true); // Turn off the flashing blue LED (active LOW)
         Serial.println("Configuration completed. Attempting to connect to WiFi.");
 
         // Try to connect to WiFi
@@ -94,7 +95,15 @@ bool ButtonManager::isButtonPressed() {
 }
 
 void ButtonManager::checkButton() {
-    bool reading = digitalRead(buttonPin);
+    bool reading = digitalRead(mainButton);
+
+    // Prevent false triggering during the first 2 seconds after startup
+    if (millis() < 2000) {
+        lastButtonState = reading;
+        buttonState = reading;
+        lastPressTime = millis();
+        return;
+    }
 
     // Debounce logic
     if (reading != lastButtonState) {
@@ -106,7 +115,12 @@ void ButtonManager::checkButton() {
             buttonState = reading;
             if (buttonState == LOW) { // Button pressed
                 Serial.println("Button pressed");
+                Serial.print("Setting lastPressTime to: ");
+                Serial.println(millis());
                 lastPressTime = millis();
+                validPressStarted = true; // Mark that button was pressed from released state
+                Serial.print("validPressStarted set to: ");
+                Serial.println(validPressStarted);
                 connectivityModeStarted = false; // Reset flag
                 // vacationModeStarted = false; // Reset flag for vacation mode
                 buttonPressed = true; // Set button pressed flag
@@ -133,9 +147,9 @@ void ButtonManager::checkButton() {
                         "smtp.gmail.com", 465, 
                         wifiManager->getSenderEmail().c_str(), 
                         wifiManager->getSenderPassword().c_str(), 
-                        "Button Press Alert", 
+                        wifiManager->getEmailSubject().c_str(), 
                         emailBody.c_str(),
-                        configRedPin );                
+                        configRedLED );                
                     
 
                     notificationManager->sendSMS(
@@ -154,13 +168,14 @@ void ButtonManager::checkButton() {
             else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted) 
             {
                 Serial.println("Button released before 3 seconds");
+                validPressStarted = false; // Reset valid press flag on release
                 resetTimer();
                 Serial.print("Vacation mode flag before exit: ");
                 Serial.println(vacationModeStarted);
                 if (vacationModeStarted) {
                     vacationModeStarted = false;
                     Serial.println("Vacation mode exited due to short press.");
-                    setLED(bluePin, false); // or whatever resets your vacation LED
+                    setMainLEDsOff(); // Turn off vacation LEDs
                 }
                 alarmSkipDate = getTodayDate();
                 Serial.println("Alarm skipped for today: " + alarmSkipDate);
@@ -169,6 +184,7 @@ void ButtonManager::checkButton() {
             else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
                 Serial.println("Button released after exactly 3 seconds");
                 Serial.println("Setting vacationModeStarted to true");
+                validPressStarted = false; // Reset valid press flag on release
                 startVacationMode();
                 resetTimer();  // Ensure the timer is reset even during vacation mode
                 vacationModeStarted = true; // Set flag
@@ -177,12 +193,33 @@ void ButtonManager::checkButton() {
         }
     }
 
-    if (buttonState == LOW && (millis() - lastPressTime >= 10000) && !connectivityModeStarted) { // Button pressed for 10 seconds
+    // Debug output for long button presses
+    if (buttonState == LOW && validPressStarted && (millis() - lastPressTime > 1000)) {
+        static unsigned long lastDebugTime = 0;
+        if (millis() - lastDebugTime > 1000) { // Print every second
+            Serial.print("Button held for: ");
+            Serial.print((millis() - lastPressTime) / 1000);
+            Serial.print(" seconds. connectivityModeStarted: ");
+            Serial.print(connectivityModeStarted);
+            Serial.print(", validPressStarted: ");
+            Serial.println(validPressStarted);
+            lastDebugTime = millis();
+        }
+    }
+
+    if (buttonState == LOW && (millis() - lastPressTime >= 10000) && !connectivityModeStarted && validPressStarted) { // Button pressed for 10 seconds
         Serial.println("Button pressed for 10 seconds");
+        Serial.print("Current millis: ");
+        Serial.println(millis());
+        Serial.print("lastPressTime: ");
+        Serial.println(lastPressTime);
+        Serial.print("Time held: ");
+        Serial.println(millis() - lastPressTime);
         startConnectivityMode();
         resetTimer();  // Ensure the timer is reset even during connectivity mode
         connectivityModeStarted = true; // Set flag
         vacationModeStarted = false; // Ensure vacation mode is not started
+        validPressStarted = false; // Reset the valid press flag
         buttonPressed = true; // Set button pressed flag
     }
 
@@ -204,32 +241,28 @@ void ButtonManager::setButtonState(String state)
     Serial.println("Button state changed to: " + state);
     if (state == "blue") 
     {
-        digitalWrite(bluePin, HIGH);
-        digitalWrite(redPin, LOW);
-        digitalWrite(whitePin, LOW);
+        setMainLEDsBlue();
     } 
     else if (state == "flashingRed") 
     {
-        digitalWrite(bluePin, LOW);
-        digitalWrite(whitePin, LOW);
-        // Do not toggle redPin or delay here; handled in update()
+        // Red flashing handled in update() method
     } 
     else if (state == "solidRed") 
     {
-        digitalWrite(bluePin, LOW);
-        digitalWrite(redPin,  HIGH);
-        digitalWrite(whitePin, LOW);
+        setMainLEDsRed();
     }
     else if (state == "white")
     {
-        digitalWrite(bluePin, LOW);
-        digitalWrite(redPin,  LOW);
-        digitalWrite(whitePin, HIGH);
+        setMainLEDsWhite();
     } 
+    else if (state == "off")
+    {
+        setMainLEDsOff();
+    }
 
     // Turn off flashing LED when leaving flashingRed
     if (currentState == "flashingRed" && state != "flashingRed") {
-        digitalWrite(redPin, LOW);
+        setMainLEDsOff();
     }
 
     currentState = state;
@@ -283,9 +316,9 @@ void ButtonManager::handleButtonState()
                 "smtp.gmail.com", 465, 
                 wifiManager->getSenderEmail().c_str(), 
                 wifiManager->getSenderPassword().c_str(), 
-                "Solid Red Alert", 
+                wifiManager->getEmailSubject().c_str(), 
                 emailBody.c_str(),
-                configRedPin
+                configRedLED
             );
             // Mark email as sent
             emailSentForSolidRed = true;
@@ -353,11 +386,17 @@ void ButtonManager::setLED(int pin, bool state, bool activeLow) {
 }
 
 void ButtonManager::flashRedLED() {
-    // Implement flashing red logic
+    // Implement flashing red logic for WS2812B LEDs
     static unsigned long lastFlashTime = 0;
+    static bool ledState = false;
     unsigned long currentTime = millis();
     if (currentTime - lastFlashTime >= 500) { // Toggle every 500ms
-        digitalWrite(redPin, !digitalRead(redPin));
+        ledState = !ledState;
+        if (ledState) {
+            setMainLEDsRed();
+        } else {
+            setMainLEDsOff();
+        }
         lastFlashTime = currentTime;
     }
 }
@@ -367,7 +406,7 @@ void ButtonManager::flashConfigBlueLED() {
     static unsigned long lastFlashTime = 0;
     unsigned long currentTime = millis();
     if (currentTime - lastFlashTime >= 500) { // Toggle every 500ms
-        digitalWrite(configBluePin, !digitalRead(configBluePin));
+        digitalWrite(configBlueLED, !digitalRead(configBlueLED));
         lastFlashTime = currentTime;
     }
 }
@@ -377,7 +416,7 @@ void ButtonManager::flashConfigRedLED() {
     static unsigned long lastFlashTime = 0;
     unsigned long currentTime = millis();
     if (currentTime - lastFlashTime >= 500) { // Toggle every 500ms
-        digitalWrite(configRedPin, !digitalRead(configRedPin));
+        digitalWrite(configRedLED, !digitalRead(configRedLED));
         lastFlashTime = currentTime;
     }
 }
@@ -385,9 +424,9 @@ void ButtonManager::flashConfigRedLED() {
 void ButtonManager::blinkConfigGreenLED() {
     // Blink the green LED five times rapidly
     for (int i = 0; i < 10; i++) { // Blink 5 times (10 toggles)
-        setLED(configGreenPin, true, true); // Turn on the green LED (active LOW)
+        setLED(configGreenLED, true, true); // Turn on the green LED (active LOW)
         delay(100); // Wait for 100ms
-        setLED(configGreenPin, false, true); // Turn off the green LED (active LOW)
+        setLED(configGreenLED, false, true); // Turn off the green LED (active LOW)
         delay(100); // Wait for 100ms
     }
 }
@@ -396,15 +435,15 @@ void ButtonManager::startConnectivityMode() {
     apMode = true;
     wifiManager->eraseConfig();         // Erase previous configuration
     wifiManager->begin();
-    setLED(configBluePin, true, true); // Start flashing blue LED (active LOW)
-    setLED(configRedPin, false, true); // Turn off the red LED (active LOW)
+    setLED(configBlueLED, true, true); // Start flashing blue LED (active LOW)
+    setLED(configRedLED, false, true); // Turn off the red LED (active LOW)
     wifiConnected = false; // Reset WiFi connection status
     Serial.println("Connectivity mode started. Access point is up.");
 }
 
 void ButtonManager::startVacationMode() 
 {
-    setLED(bluePin, true); // Turn on the blue LED to indicate vacation mode
+    setMainLEDsBlue(); // Turn on the blue LEDs to indicate vacation mode
     Serial.println("Vacation mode started. Device is in sleep mode.");
     // Add any additional logic for vacation/sleep mode here
 }
@@ -427,7 +466,7 @@ void ButtonManager::tryConnectWiFi() {
         // Indicate retry attempt with flashing blue LED rapidly
         while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) 
         {
-            setLED(configBluePin, !digitalRead(configBluePin), true); // Toggle blue LED rapidly
+            setLED(configBlueLED, !digitalRead(configBlueLED), true); // Toggle blue LED rapidly
             delay(100);
             Serial.print(".");
         }
@@ -436,7 +475,7 @@ void ButtonManager::tryConnectWiFi() {
             Serial.println("WiFi connected.");
             wifiConnected = true;
             blinkConfigGreenLED(); // Blink the green LED five times rapidly to indicate successful connection
-            setLED(configBluePin, false, true); // Ensure the blue LED is turned off
+            setLED(configBlueLED, false, true); // Ensure the blue LED is turned off
             return;
         } 
         else 
@@ -448,7 +487,7 @@ void ButtonManager::tryConnectWiFi() {
 
     // If all attempts fail, indicate failure and switch to configuration mode
     Serial.println("WiFi connection failed after maximum attempts.");
-    setLED(configRedPin, true, true); // Turn on the red LED (active LOW)
+    setLED(configRedLED, true, true); // Turn on the red LED (active LOW)
     wifiConnected = false;
 
     // Automatically enter configuration mode after failure
@@ -457,7 +496,7 @@ void ButtonManager::tryConnectWiFi() {
 
 void ButtonManager::indicateConfigurationNeeded() {
     // Indicate that configuration is needed with a solid red LED
-    setLED(configRedPin, true, true); // Turn on the red LED (active LOW)
+    setLED(configRedLED, true, true); // Turn on the red LED (active LOW)
     Serial.println("Configuration is needed.");
 }
 

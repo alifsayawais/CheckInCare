@@ -5,10 +5,15 @@
 #include <WiFiManager.h>
 #include <NotificationManager.h> // Include NotificationManager
 
+// External LED control functions for WS2812B
+extern void setMainLEDsRed();
+extern void setMainLEDsBlue();
+extern void setMainLEDsWhite();
+extern void setMainLEDsOff();
+
 class ButtonManager {
 public:
-    ButtonManager(int buttonPin, int redPin, int bluePin, int whitePin, 
-    int configBluePin, int configGreenPin, int configRedPin,
+    ButtonManager(int mainButton, int configBlueLED, int configGreenLED, int configRedLED,
     WiFiManager* wifiManager, NotificationManager* notificationManager);
 
     void begin();
@@ -29,13 +34,10 @@ private:
     String today;
     String alarmSkipDate;
 
-    int buttonPin;
-    int redPin;
-    int bluePin;
-    int whitePin;
-    int configBluePin;
-    int configGreenPin;
-    int configRedPin;
+    int mainButton;
+    int configBlueLED;
+    int configGreenLED;
+    int configRedLED;
 
     unsigned long lastPressTime;
     unsigned long pressInterval;
@@ -48,6 +50,7 @@ private:
     bool connectivityModeStarted;
     bool wifiConnected;
     bool vacationModeStarted;
+    bool validPressStarted; // Track if button was pressed from released state
     
 
     WiFiManager* wifiManager;
