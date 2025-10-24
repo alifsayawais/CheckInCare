@@ -43,10 +43,10 @@ The device features a multi-functional button. Its actions are:
 
 ## LED Indicators
 
-- **White LED:** Normal operation.
-- **Blue LED (Flashing):** Configuration mode is active.
-- **Red LED (Solid):** Connectivity issue detected.
-- **Green LED (Blinking):** Configuration successful.
+- **White LED Main:** Normal operation.
+- **Small Blue LED (Flashing):** Configuration mode is active.
+- **Small Red LED (Solid):** Connectivity issue detected.
+- **Small Green LED (Blinking):** Configuration successful.
 
 ---
 
