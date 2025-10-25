@@ -81,6 +81,7 @@ private:
     bool missedButtonEmailSent;   // Track if missed button email has been sent
     bool deviceJustStarted;       // Track if device just powered on
     unsigned long startupTime;    // Time when device was powered on
+    unsigned long connectivityModeStartTime; // Time when connectivity mode was started
 
 };
 

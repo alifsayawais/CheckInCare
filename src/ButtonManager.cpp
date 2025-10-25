@@ -4,7 +4,7 @@
 
 ButtonManager::ButtonManager(int mainButton, int configBlueLED, int configGreenLED, int configRedLED, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : mainButton(mainButton), configBlueLED(configBlueLED), configGreenLED(configGreenLED), configRedLED(configRedLED),
-      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), validPressStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false), twentyMinWarningShown(false), missedButtonEmailSent(false), deviceJustStarted(true), startupTime(millis()) {
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), validPressStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false), twentyMinWarningShown(false), missedButtonEmailSent(false), deviceJustStarted(true), startupTime(millis()), connectivityModeStartTime(0) {
     buttonPressed = false; // Initialize the button pressed flag
     targetTime = "";
     today = "";
@@ -125,8 +125,12 @@ void ButtonManager::checkButton() {
                 validPressStarted = true; // Mark that button was pressed from released state
                 Serial.print("validPressStarted set to: ");
                 Serial.println(validPressStarted);
-                connectivityModeStarted = false; // Reset flag
-                // vacationModeStarted = false; // Reset flag for vacation mode
+                
+                // Don't reset connectivity mode flag if already in connectivity mode
+                if (!connectivityModeStarted) {
+                    // Only reset these flags if not in connectivity mode
+                    // vacationModeStarted = false; // Reset flag for vacation mode
+                }
                 buttonPressed = true; // Set button pressed flag
 
                 // Check for consecutive presses within 0.4 seconds
@@ -182,7 +186,8 @@ void ButtonManager::checkButton() {
                     Serial.println("Vacation mode exited due to short press.");
                 }
                 alarmSkipDate = getTodayDate();
-                Serial.println("Alarm skipped for today: " + alarmSkipDate);
+                Serial.print("Alarm skipped for today: ");
+                Serial.println(alarmSkipDate);
                 
                 // Reset daily notification flags when button is pressed
                 twentyMinWarningShown = false;
@@ -193,6 +198,36 @@ void ButtonManager::checkButton() {
                 // Always turn LEDs white on single press
                 setMainLEDsWhite();
                 currentState = "white";
+            }
+            // Handle button press during connectivity mode
+            else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && connectivityModeStarted) 
+            {
+                // Add grace period to prevent immediate exit after starting connectivity mode
+                if (millis() - connectivityModeStartTime < 2000) { // 2-second grace period
+                    Serial.println("Button press ignored - connectivity mode grace period active");
+                    validPressStarted = false;
+                    return;
+                }
+                
+                Serial.println("Button pressed during connectivity mode");
+                validPressStarted = false; // Reset valid press flag on release
+                
+                // Check if there's existing WiFi configuration
+                if (!wifiManager->getSSID().isEmpty()) {
+                    Serial.println("Existing configuration found - exiting connectivity mode");
+                    connectivityModeStarted = false;
+                    apMode = false;
+                    
+                    // Turn off config LEDs
+                    setLED(configBlueLED, false, true);
+                    setLED(configRedLED, false, true);
+                    
+                    // Try to connect with existing configuration
+                    tryConnectWiFi();
+                } else {
+                    Serial.println("No existing configuration - staying in connectivity mode");
+                    // Stay in connectivity mode for setup
+                }
             }
             else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after 3-10 seconds
                 Serial.println("Button released after 3-10 seconds");
@@ -234,9 +269,11 @@ void ButtonManager::checkButton() {
         startConnectivityMode();
         resetTimer();  // Ensure the timer is reset even during connectivity mode
         connectivityModeStarted = true; // Set flag
+        connectivityModeStartTime = millis(); // Record when connectivity mode started
         vacationModeStarted = false; // Ensure vacation mode is not started
         validPressStarted = false; // Reset the valid press flag
         buttonPressed = true; // Set button pressed flag
+        lastPressTime = millis(); // Reset press time for next button detection
     }
 
     lastButtonState = reading;
