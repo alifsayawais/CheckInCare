@@ -135,6 +135,11 @@ void WiFiManager::handleRoot() {
     "</div>"
 
     "<div class=\"form-group\">"
+    "<label for=\"warning_threshold\">Warning Time (minutes before)</label>"
+    "<input type=\"number\" id=\"warning_threshold\" name=\"warning_threshold\" min=\"1\" max=\"60\" placeholder=\"20\" value=\"" + warningThreshold + "\">"
+    "</div>"
+
+    "<div class=\"form-group\">"
     "<label for=\"time_zone\">Time Zone</label>"
     "<select id=\"time_zone\" name=\"time_zone\">"
     "<option value=\"UTC-12\"" + (timeZone == "UTC-12" ? " selected" : "") + ">UTC-12</option>"
@@ -225,6 +230,9 @@ void WiFiManager::handleConfig()
     incoming = server.arg("email_subject");
     if (!incoming.isEmpty()) emailSubject = incoming;
 
+    incoming = server.arg("warning_threshold");
+    if (!incoming.isEmpty()) warningThreshold = incoming;
+
     // Save merged config
     saveConfigToNVS();
 
@@ -285,6 +293,10 @@ String WiFiManager::getAuthToken() {
     return authToken;
 }
 
+String WiFiManager::getWarningThreshold() {
+    return warningThreshold;
+}
+
 void WiFiManager::saveConfigToNVS() {
     preferences.begin("wifi-config", false);
     preferences.putString("ssid", ssid);
@@ -298,6 +310,7 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("button_time", buttonTime);
     preferences.putString("time_zone", timeZone);
     preferences.putString("auth_token",authToken);
+    preferences.putString("warning_threshold", warningThreshold);
     preferences.end();
 }
 
@@ -314,6 +327,7 @@ void WiFiManager::loadConfigFromNVS() {
     buttonTime = preferences.getString("button_time", "");
     timeZone = preferences.getString("time_zone", "");
     authToken = preferences.getString("auth_token","");
+    warningThreshold = preferences.getString("warning_threshold", "20");
     preferences.end();
 
     // Check if configuration is valid

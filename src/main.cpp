@@ -41,18 +41,22 @@ void setMainLEDs(uint32_t color) {
 }
 
 void setMainLEDsRed() {
+    Serial.println("Setting main LEDs to RED");
     setMainLEDs(strip.Color(255, 0, 0));
 }
 
 void setMainLEDsBlue() {
+    Serial.println("Setting main LEDs to BLUE");
     setMainLEDs(strip.Color(0, 0, 255));
 }
 
 void setMainLEDsWhite() {
+    Serial.println("Setting main LEDs to WHITE");
     setMainLEDs(strip.Color(255, 255, 255));
 }
 
 void setMainLEDsOff() {
+    Serial.println("Setting main LEDs to OFF");
     setMainLEDs(strip.Color(0, 0, 0));
 }
 
@@ -60,10 +64,21 @@ void setup()
 {
     Serial.begin(115200);
     
-    // Initialize WS2812B LEDs on GPIO 31
+    // Initialize WS2812B LEDs on GPIO 38
     strip.begin();
-    strip.setBrightness(50); // Set brightness to 50% (0-255)
+    strip.setBrightness(255); // Set brightness to maximum (0-255) for testing
     setMainLEDsOff(); // Start with LEDs off
+    
+    // Test LEDs at startup
+    Serial.println("Testing LEDs at startup...");
+    setMainLEDsWhite();
+    delay(1000);
+    setMainLEDsRed();
+    delay(1000);
+    setMainLEDsBlue();
+    delay(1000);
+    setMainLEDsOff();
+    Serial.println("LED test complete.");
 
     if (!EEPROM.begin(512)) {
         Serial.println("Failed to initialize EEPROM. Formatting NVS...");
@@ -100,5 +115,4 @@ void loop()
 {
     buttonManager.handleClient();
     buttonManager.update();
-    notificationManager->update();
 }

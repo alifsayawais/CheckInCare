@@ -4,7 +4,7 @@
 
 ButtonManager::ButtonManager(int mainButton, int configBlueLED, int configGreenLED, int configRedLED, WiFiManager* wifiManager, NotificationManager* notificationManager)
     : mainButton(mainButton), configBlueLED(configBlueLED), configGreenLED(configGreenLED), configRedLED(configRedLED),
-      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), validPressStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false) {
+      lastPressTime(0), pressInterval(12 * 60 * 60 * 1000), debounceDelay(50), lastDebounceTime(0), lastButtonState(HIGH), buttonState(HIGH), apMode(false), wifiManager(wifiManager), connectivityModeStarted(false), wifiConnected(false), vacationModeStarted(false), validPressStarted(false), consecutivePressCount(0), lastPressCheckTime(0), emailSentForSolidRed(false), messageSent(false), twentyMinWarningShown(false), missedButtonEmailSent(false), deviceJustStarted(true), startupTime(millis()) {
     buttonPressed = false; // Initialize the button pressed flag
     targetTime = "";
     today = "";
@@ -66,6 +66,10 @@ void ButtonManager::update()
     // Handle red LED flashing for flashingRed state
     if (currentState == "flashingRed") {
         flashRedLED();
+    }
+    // Handle rapid red LED flashing for 20-minute warning
+    if (currentState == "rapidRed") {
+        flashRapidRedLED();
     }
     // Reset the press count if the interval exceeds 400 ms
     if (millis() - lastPressCheckTime >= 400) 
@@ -168,6 +172,7 @@ void ButtonManager::checkButton() {
             else if (buttonState == HIGH && (millis() - lastPressTime < 3000) && !connectivityModeStarted) 
             {
                 Serial.println("Button released before 3 seconds");
+                Serial.println("Single press detected - turning LEDs white");
                 validPressStarted = false; // Reset valid press flag on release
                 resetTimer();
                 Serial.print("Vacation mode flag before exit: ");
@@ -175,15 +180,26 @@ void ButtonManager::checkButton() {
                 if (vacationModeStarted) {
                     vacationModeStarted = false;
                     Serial.println("Vacation mode exited due to short press.");
-                    setMainLEDsOff(); // Turn off vacation LEDs
                 }
                 alarmSkipDate = getTodayDate();
                 Serial.println("Alarm skipped for today: " + alarmSkipDate);
-                setButtonState("white"); // Single press action (will do nothing if already white)
+                
+                // Reset daily notification flags when button is pressed
+                twentyMinWarningShown = false;
+                missedButtonEmailSent = false;
+                emailSentForSolidRed = false;
+                messageSent = false;
+                
+                // Always turn LEDs white on single press
+                setMainLEDsWhite();
+                currentState = "white";
             }
-            else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after exactly 3 seconds
-                Serial.println("Button released after exactly 3 seconds");
-                Serial.println("Setting vacationModeStarted to true");
+            else if (buttonState == HIGH && (millis() - lastPressTime >= 3000) && (millis() - lastPressTime < 10000) && !vacationModeStarted && !connectivityModeStarted) { // Button released after 3-10 seconds
+                Serial.println("Button released after 3-10 seconds");
+                Serial.print("Hold duration: ");
+                Serial.print((millis() - lastPressTime) / 1000);
+                Serial.println(" seconds");
+                Serial.println("Starting vacation mode - turning LEDs BLUE");
                 validPressStarted = false; // Reset valid press flag on release
                 startVacationMode();
                 resetTimer();  // Ensure the timer is reset even during vacation mode
@@ -236,9 +252,12 @@ void ButtonManager::setNotificationManager(NotificationManager* notificationMana
 
 void ButtonManager::setButtonState(String state) 
 {
-    if (state == currentState) return;
+    if (state == currentState) {
+        return;
+    }
 
-    Serial.println("Button state changed to: " + state);
+    Serial.print("Button state changed to: ");
+    Serial.println(state);
     if (state == "blue") 
     {
         setMainLEDsBlue();
@@ -247,6 +266,10 @@ void ButtonManager::setButtonState(String state)
     {
         // Red flashing handled in update() method
     } 
+    else if (state == "rapidRed") 
+    {
+        // Rapid red flashing handled in update() method  
+    }
     else if (state == "solidRed") 
     {
         setMainLEDsRed();
@@ -260,8 +283,9 @@ void ButtonManager::setButtonState(String state)
         setMainLEDsOff();
     }
 
-    // Turn off flashing LED when leaving flashingRed
-    if (currentState == "flashingRed" && state != "flashingRed") {
+    // Turn off flashing LED when leaving flashingRed or rapidRed (but not when going to solidRed)
+    if ((currentState == "flashingRed" || currentState == "rapidRed") && 
+        (state != "flashingRed" && state != "rapidRed" && state != "solidRed")) {
         setMainLEDsOff();
     }
 
@@ -286,14 +310,32 @@ void ButtonManager::setTargetTime(const String& time) {
 
 void ButtonManager::handleButtonState() 
 {
+    // Skip all check-in logic when in vacation mode
+    if (vacationModeStarted) {
+        return; // No emails, no LED changes, patient is on vacation
+    }
+    
+    // Skip all check-in logic when in connectivity mode
+    if (connectivityModeStarted) {
+        return; // No main LED changes during configuration
+    }
+    
     if (targetTime == "") return; // No target time set
     today = getTodayDate();
     
     if (alarmSkipDate == today)
     {
-        setButtonState("white");
+        if (currentState != "white") {
+            setButtonState("white");
+        }
+        // Reset daily flags when alarm is skipped
+        twentyMinWarningShown = false;
+        missedButtonEmailSent = false;
+        emailSentForSolidRed = false;
+        messageSent = false;
         return;
     }
+    
     // Get the current time (hour and minute)
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
@@ -303,41 +345,97 @@ void ButtonManager::handleButtonState()
     char currentTime[6];
     strftime(currentTime, sizeof(currentTime), "%H:%M", &timeinfo);
 
-    if (String(currentTime) == targetTime) 
-    { // Exact target time
-        setButtonState("solidRed");
-        // Check if email has already been sent for this state
-        if (!emailSentForSolidRed) 
-        {
-            // Send email
-            Serial.println("Sending email for solid red state...");
-            String emailBody = "The button has been in the solid red state.";
+    // Check if target time has passed (send missed button email only once)
+    if (!missedButtonEmailSent) {
+        // Check startup protection only once and disable it after 2 minutes
+        if (deviceJustStarted) {
+            if ((millis() - startupTime) < 120000) { // 2 minutes = 120000ms
+                // Still in startup grace period - skip email logic silently
+                return;
+            } else {
+                // Grace period ended - disable startup protection
+                deviceJustStarted = false;
+                Serial.println("Device startup grace period ended - resuming normal email monitoring");
+            }
+        }
+        
+        // Parse times for comparison
+        int currentHour, currentMinute, targetHour, targetMinute;
+        sscanf(currentTime, "%d:%d", &currentHour, &currentMinute);
+        sscanf(targetTime.c_str(), "%d:%d", &targetHour, &targetMinute);
+        
+        time_t now = currentHour * 3600 + currentMinute * 60;
+        time_t target = targetHour * 3600 + targetMinute * 60;
+        
+        // Check if current time is more than 5 minutes past target time
+        if (now > target && (now - target) >= 300) { // 5 minutes = 300 seconds
+            Serial.println("Target time passed by more than 5 minutes - sending missed button email");
+            String emailBody = "ALERT: The patient has not pressed the button at the scheduled time (";
+            emailBody += targetTime;
+            emailBody += "). Please check on them immediately.";
             notificationManager->sendEmail(
                 "smtp.gmail.com", 465, 
                 wifiManager->getSenderEmail().c_str(), 
                 wifiManager->getSenderPassword().c_str(), 
-                wifiManager->getEmailSubject().c_str(), 
+                "URGENT: Missed Check-in Alert", 
                 emailBody.c_str(),
                 configRedLED
             );
-            // Mark email as sent
-            emailSentForSolidRed = true;
+            missedButtonEmailSent = true;
+            setButtonState("solidRed"); // Keep solid red to indicate missed check-in
+            return;
         }
+    }
 
-        if (!messageSent)
-        {
-            notificationManager->sendSMS(
-            "ACf421c9e76d3e2c2914b1138c3c03b214",
-            wifiManager->getAuthToken(),
-            "+18449893949",             // Sender must be in E.164 format, e.g., "+1234567890"
-            wifiManager->getPhone(),   // Receiver must be in E.164 format, e.g., "+1987654321"
-            wifiManager->getEmailBody()   
-        );
-        messageSent = true;
+    // Configurable warning threshold (get from WiFi manager)
+    String thresholdStr = wifiManager->getWarningThreshold();
+    int warningMinutes = thresholdStr.toInt();
+    if (warningMinutes <= 0) warningMinutes = 20; // Default to 20 minutes if invalid
+    int warningSeconds = warningMinutes * 60;
+    
+    if (!twentyMinWarningShown && isTimeWithinRange(String(currentTime), targetTime, warningSeconds)) {
+        Serial.print("Warning threshold reached (");
+        Serial.print(warningMinutes);
+        Serial.println(" minutes) - rapid red flashing");
+        setButtonState("rapidRed");
+        twentyMinWarningShown = true;
+        return;
+    }
+    
+    if (String(currentTime) == targetTime || isTimeWithinRange(String(currentTime), targetTime, 30)) 
+    { // Exact target time (with 30-second window) - just change LED state, no email to caregiver yet
+        // Parse times to check if we're at or past target time
+        int currentHour, currentMinute, targetHour, targetMinute;
+        sscanf(currentTime, "%d:%d", &currentHour, &currentMinute);
+        sscanf(targetTime.c_str(), "%d:%d", &targetHour, &targetMinute);
+        
+        time_t now = currentHour * 3600 + currentMinute * 60;
+        time_t target = targetHour * 3600 + targetMinute * 60;
+        
+        // Only set solid red if we're at or past the target time
+        if (now >= target) {
+            if (currentState != "solidRed") {
+                setButtonState("solidRed");
+                Serial.println("Target time reached - LED turned red, waiting for patient to check in");
+                // No email sent to caregiver at this point - they only need to know if patient misses check-in
+                emailSentForSolidRed = true; // Mark as processed for this time slot
+            }
+            return; // Important: Exit here to prevent other logic from overriding
         }
     }
     else if (isTimeWithinRange(String(currentTime), targetTime, 1800)) { // 30 minutes 
-        setButtonState("flashingRed");
+        // Get the configurable warning threshold
+        String thresholdStr = wifiManager->getWarningThreshold();
+        int warningMinutes = thresholdStr.toInt();
+        if (warningMinutes <= 0) warningMinutes = 20; // Default to 20 minutes if invalid
+        int warningSeconds = warningMinutes * 60;
+        
+        // Check if we're within the warning threshold
+        if (isTimeWithinRange(String(currentTime), targetTime, warningSeconds)) {
+            setButtonState("rapidRed"); // Rapid flashing within warning threshold
+        } else {
+            setButtonState("flashingRed"); // Normal flashing outside warning threshold
+        }
     }
     else if (isTimeWithinRange(String(currentTime), targetTime, 3600)) { // 1 hour
         setButtonState("blue");
@@ -401,6 +499,22 @@ void ButtonManager::flashRedLED() {
     }
 }
 
+void ButtonManager::flashRapidRedLED() {
+    // Implement rapid flashing red logic for 20-minute warning
+    static unsigned long lastFlashTime = 0;
+    static bool ledState = false;
+    unsigned long currentTime = millis();
+    if (currentTime - lastFlashTime >= 200) { // Toggle every 200ms for rapid flashing
+        ledState = !ledState;
+        if (ledState) {
+            setMainLEDsRed();
+        } else {
+            setMainLEDsOff();
+        }
+        lastFlashTime = currentTime;
+    }
+}
+
 void ButtonManager::flashConfigBlueLED() {
     // Implement flashing blue logic for configuration mode
     static unsigned long lastFlashTime = 0;
@@ -435,6 +549,7 @@ void ButtonManager::startConnectivityMode() {
     apMode = true;
     wifiManager->eraseConfig();         // Erase previous configuration
     wifiManager->begin();
+    setMainLEDsOff();                   // Turn off main LEDs during configuration
     setLED(configBlueLED, true, true); // Start flashing blue LED (active LOW)
     setLED(configRedLED, false, true); // Turn off the red LED (active LOW)
     wifiConnected = false; // Reset WiFi connection status
@@ -455,8 +570,10 @@ void ButtonManager::tryConnectWiFi() {
     int attempt = 0;
 
     Serial.println("Connecting to WiFi...");
-    Serial.println("SSID: " + ssid);
-    Serial.println("Password: " + password);
+    Serial.print("SSID: ");
+    Serial.println(ssid);
+    Serial.print("Password: ");
+    Serial.println(password);
 
     while (attempt < maxAttempts) 
     {

@@ -16,7 +16,6 @@ public:
                    const char* subject, const char* content, 
                    int configRedLED); // Removed recipientEmail
     void sendSMS_SIM800(const String& message);
-    void update();
     bool sendSMS(const String& accountSID, 
         const String& authToken, 
         const String& fromNumber, 
@@ -25,10 +24,6 @@ public:
     );
 
 private:
-    unsigned long blinkStartTime = 0;
-    bool isBlinking = false;
-    int blinkPin = -1;
-    
     String email;
     String phone;
 

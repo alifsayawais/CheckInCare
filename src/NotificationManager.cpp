@@ -21,28 +21,6 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
         return;
     }
 
-    // Configure configRedLED for LED blinking
-    blinkPin = configRedLED;
-    pinMode(blinkPin, OUTPUT);
-    blinkStartTime = millis();
-    isBlinking = true;
-
-    unsigned long blinkStart = millis();
-    unsigned long blinkDuration = 5000;
-    bool ledState = false;
-    
-    Serial.println("Blinking LED before sending email...");
-    pinMode(configRedLED, OUTPUT);
-    for (int i=0; i<10; i++)
-    {
-        digitalWrite(configRedLED, LOW);
-        delay(100);
-        digitalWrite(configRedLED, HIGH);
-        delay(100);
-    }
-
-    digitalWrite(configRedLED, HIGH);
-
     // Configure SMTP server
     ESP_Mail_Session session;
     session.server.host_name = smtpHost;
@@ -73,17 +51,6 @@ void NotificationManager::sendEmail(const char* smtpHost, uint16_t smtpPort,
 
     message.clear();
     smtp.closeSession();
-}
-
-void NotificationManager::update() {
-    if (isBlinking) {
-        if (millis() - blinkStartTime < 5000) {
-            digitalWrite(blinkPin, (millis() % 200 < 100) ? LOW : HIGH);
-        } else {
-            digitalWrite(blinkPin, HIGH);
-            isBlinking = false;
-        }
-    }
 }
 
 void NotificationManager::sendSMS_SIM800(const String& message) {

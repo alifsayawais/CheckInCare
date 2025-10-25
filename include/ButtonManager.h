@@ -65,6 +65,7 @@ private:
     void handleButtonState();
     void setLED(int pin, bool state, bool activeLow = false);
     void flashRedLED();
+    void flashRapidRedLED();       // New function for 20-minute warning
     void flashConfigBlueLED();
     void flashConfigRedLED();
     void blinkConfigGreenLED();
@@ -76,6 +77,10 @@ private:
     bool buttonPressed;
     bool emailSentForSolidRed;
     bool messageSent;
+    bool twentyMinWarningShown;    // Track if 20-minute warning has been shown
+    bool missedButtonEmailSent;   // Track if missed button email has been sent
+    bool deviceJustStarted;       // Track if device just powered on
+    unsigned long startupTime;    // Time when device was powered on
 
 };
 

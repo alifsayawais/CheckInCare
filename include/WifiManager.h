@@ -28,6 +28,7 @@ public:
     String getButtonTime();
     String getTimeZone();
     String getAuthToken();
+    String getWarningThreshold();
 
 private:
     const char* ap_ssid;
@@ -43,6 +44,7 @@ private:
     String buttonTime;
     String timeZone;
     String authToken;
+    String warningThreshold;
 
     void handleRoot();
     void handleNotFound();
