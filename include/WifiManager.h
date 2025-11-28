@@ -29,6 +29,7 @@ public:
     String getTimeZone();
     String getAuthToken();
     String getWarningThreshold();
+    void reloadConfigFromNVS(); // Force reload configuration from NVS
 
 private:
     const char* ap_ssid;

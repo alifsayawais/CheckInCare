@@ -11,6 +11,11 @@ extern void setMainLEDsBlue();
 extern void setMainLEDsWhite();
 extern void setMainLEDsOff();
 
+// External sound functions
+extern void playReminderSound();
+extern void playUrgentSound();
+extern void playTargetTimeSound();
+
 class ButtonManager {
 public:
     ButtonManager(int mainButton, int configBlueLED, int configGreenLED, int configRedLED,

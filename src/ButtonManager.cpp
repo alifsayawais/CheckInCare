@@ -71,6 +71,27 @@ void ButtonManager::update()
     if (currentState == "rapidRed") {
         flashRapidRedLED();
     }
+    
+    // Power saving: If device is idle (no alerts, connected to WiFi), reduce CPU frequency
+    static unsigned long lastPowerSaveCheck = 0;
+    if (millis() - lastPowerSaveCheck >= 60000) { // Check every minute
+        if (wifiConnected && !apMode && !vacationModeStarted && !connectivityModeStarted && 
+            currentState != "flashingRed" && currentState != "rapidRed" && currentState != "solidRed") {
+            
+            // Device is idle - enable power saving
+            Serial.println("💡 Device idle - enabling power saving mode");
+            setCpuFrequencyMhz(80); // Reduce from 240MHz to 80MHz
+            
+            // Could also use light sleep for short periods
+            // esp_sleep_enable_timer_wakeup(1000000); // 1 second
+            // esp_light_sleep_start();
+        } else {
+            // Restore full performance when active
+            setCpuFrequencyMhz(240);
+        }
+        lastPowerSaveCheck = millis();
+    }
+    
     // Reset the press count if the interval exceeds 400 ms
     if (millis() - lastPressCheckTime >= 400) 
     {
@@ -159,14 +180,11 @@ void ButtonManager::checkButton() {
                         emailBody.c_str(),
                         configRedLED );                
                     
-
-                    notificationManager->sendSMS(
-                    "ACf421c9e76d3e2c2914b1138c3c03b214",
-                    wifiManager->getAuthToken(),
-                    "+18449893949",   // must be in E.164 format, e.g., "+1234567890"
-                    wifiManager->getPhone(),   // must be in E.164 format, e.g., "+1987654321"
-                    wifiManager->getEmailBody()   
-                    );
+                    // Send SMS via Twilio
+                    String phoneNumber = wifiManager->getPhone();
+                    if (!phoneNumber.isEmpty()) {
+                        notificationManager->sendTwilioSMS(phoneNumber, emailBody);
+                    }
                     
                     // Automatically release the button and reset the press count
                     buttonState = HIGH; // Simulate button release
@@ -302,14 +320,26 @@ void ButtonManager::setButtonState(String state)
     else if (state == "flashingRed") 
     {
         // Red flashing handled in update() method
+        // Play reminder sound when starting warning phase
+        if (currentState != "flashingRed") {
+            playReminderSound(); // Play gentle reminder sound
+        }
     } 
     else if (state == "rapidRed") 
     {
         // Rapid red flashing handled in update() method  
+        // Play urgent sound when entering urgent warning phase
+        if (currentState != "rapidRed") {
+            //playUrgentSound(); // Commented out for now
+        }
     }
     else if (state == "solidRed") 
     {
         setMainLEDsRed();
+        // Play target time sound when check-in time is reached
+        if (currentState != "solidRed") {
+            //playTargetTimeSound(); // Commented out for now
+        }
     }
     else if (state == "white")
     {
@@ -347,9 +377,45 @@ void ButtonManager::setTargetTime(const String& time) {
 
 void ButtonManager::handleButtonState() 
 {
-    // Skip all check-in logic when in vacation mode
+    // Handle vacation mode with simple timing (no sleep)
     if (vacationModeStarted) {
-        return; // No emails, no LED changes, patient is on vacation
+        // Check if button was pressed to exit vacation mode
+        if (digitalRead(mainButton) == LOW) {
+            Serial.println("🔘 Button pressed - checking for vacation mode exit...");
+            delay(100); // Debounce
+            
+            // Wait for button release and measure hold time
+            unsigned long pressStart = millis();
+            while (digitalRead(mainButton) == LOW) {
+                delay(10);
+                // If held too long, ignore (prevent accidental exit during long press)
+                if (millis() - pressStart > 3000) {
+                    Serial.println("Long press detected in vacation mode - ignoring");
+                    return;
+                }
+            }
+            
+            unsigned long pressDuration = millis() - pressStart;
+            if (pressDuration < 3000) { // Short press = exit vacation mode
+                Serial.println("✅ Short press detected - exiting vacation mode!");
+                vacationModeStarted = false;
+                setMainLEDsWhite();
+                currentState = "white";
+                alarmSkipDate = getTodayDate();
+                Serial.println("Vacation mode exited - normal operation resumed");
+                
+                // Reset all daily flags
+                twentyMinWarningShown = false;
+                missedButtonEmailSent = false;
+                emailSentForSolidRed = false;
+                messageSent = false;
+                
+                return; // Exit vacation mode immediately
+            }
+        }
+        
+        // If still in vacation mode, just return without continuous LED updates
+        return; // No other monitoring during vacation
     }
     
     // Skip all check-in logic when in connectivity mode
@@ -357,7 +423,28 @@ void ButtonManager::handleButtonState()
         return; // No main LED changes during configuration
     }
     
-    if (targetTime == "") return; // No target time set
+    if (targetTime == "") {
+        Serial.println("No target time set - monitoring disabled");
+        return; // No target time set
+    }
+    
+    // Debug output - only print once per minute
+    static unsigned long lastDebugTime = 0;
+    static String lastTimeDebug = "";
+    
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        String currentTimeStr = String(timeinfo.tm_hour) + ":" + String(timeinfo.tm_min);
+        if (millis() - lastDebugTime > 60000 || lastTimeDebug != currentTimeStr) { // Every 60 seconds or when minute changes
+            Serial.print("Monitoring active - Current time: ");
+            Serial.printf("%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+            Serial.print(", Target time: ");
+            Serial.println(targetTime);
+            lastDebugTime = millis();
+            lastTimeDebug = currentTimeStr;
+        }
+    }
+    
     today = getTodayDate();
     
     if (alarmSkipDate == today)
@@ -374,7 +461,6 @@ void ButtonManager::handleButtonState()
     }
     
     // Get the current time (hour and minute)
-    struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
         Serial.println("Failed to obtain time");
         return;
@@ -406,10 +492,24 @@ void ButtonManager::handleButtonState()
         
         // Check if current time is more than 5 minutes past target time
         if (now > target && (now - target) >= 300) { // 5 minutes = 300 seconds
-            Serial.println("Target time passed by more than 5 minutes - sending missed button email");
+            Serial.println("Target time passed by more than 5 minutes - sending missed button alert");
+            Serial.print("Current time: ");
+            Serial.print(currentHour);
+            Serial.print(":");
+            Serial.println(currentMinute);
+            Serial.print("Target time: ");
+            Serial.print(targetHour);
+            Serial.print(":");
+            Serial.println(targetMinute);
+            Serial.print("Time difference: ");
+            Serial.print((now - target) / 60);
+            Serial.println(" minutes");
+            
             String emailBody = "ALERT: The patient has not pressed the button at the scheduled time (";
             emailBody += targetTime;
             emailBody += "). Please check on them immediately.";
+            
+            // Send email notification
             notificationManager->sendEmail(
                 "smtp.gmail.com", 465, 
                 wifiManager->getSenderEmail().c_str(), 
@@ -418,16 +518,51 @@ void ButtonManager::handleButtonState()
                 emailBody.c_str(),
                 configRedLED
             );
+            
+            // Send SMS notification via Twilio
+            String phoneNumber = wifiManager->getPhone();
+            if (!phoneNumber.isEmpty()) {
+                Serial.print("Sending SMS alert to: ");
+                Serial.println(phoneNumber);
+                notificationManager->sendTwilioSMS(phoneNumber, emailBody);
+            } else {
+                Serial.println("No phone number configured - skipping SMS alert");
+            }
+            
             missedButtonEmailSent = true;
             setButtonState("solidRed"); // Keep solid red to indicate missed check-in
             return;
         }
     }
 
-    // Configurable warning threshold (get from WiFi manager)
+    // Configurable warning threshold (cached to avoid repeated parsing)
+    static int cachedWarningMinutes = -1;
+    static String cachedThresholdStr = "";
+    
     String thresholdStr = wifiManager->getWarningThreshold();
-    int warningMinutes = thresholdStr.toInt();
-    if (warningMinutes <= 0) warningMinutes = 20; // Default to 20 minutes if invalid
+    int warningMinutes;
+    
+    if (thresholdStr != cachedThresholdStr) {
+        // Only parse and debug when threshold changes
+        Serial.print("Raw threshold from server: '");
+        Serial.print(thresholdStr);
+        Serial.println("'");
+        warningMinutes = thresholdStr.toInt();
+        if (warningMinutes <= 0) {
+            warningMinutes = 20; // Default to 20 minutes if invalid
+            Serial.println("Using default 20 minutes (server value was invalid)");
+        } else {
+            Serial.print("Using server configured value: ");
+            Serial.print(warningMinutes);
+            Serial.println(" minutes");
+        }
+        cachedWarningMinutes = warningMinutes;
+        cachedThresholdStr = thresholdStr;
+    } else {
+        // Use cached value
+        warningMinutes = cachedWarningMinutes;
+    }
+    
     int warningSeconds = warningMinutes * 60;
     
     if (!twentyMinWarningShown && isTimeWithinRange(String(currentTime), targetTime, warningSeconds)) {
@@ -435,6 +570,7 @@ void ButtonManager::handleButtonState()
         Serial.print(warningMinutes);
         Serial.println(" minutes) - rapid red flashing");
         setButtonState("rapidRed");
+        playReminderSound(); // Play reminder sound when warning threshold is reached
         twentyMinWarningShown = true;
         return;
     }
@@ -450,14 +586,32 @@ void ButtonManager::handleButtonState()
         time_t target = targetHour * 3600 + targetMinute * 60;
         
         // Only set solid red if we're at or past the target time
-        if (now >= target) {
-            if (currentState != "solidRed") {
-                setButtonState("solidRed");
-                Serial.println("Target time reached - LED turned red, waiting for patient to check in");
-                // No email sent to caregiver at this point - they only need to know if patient misses check-in
-                emailSentForSolidRed = true; // Mark as processed for this time slot
+        if (now >= target && !emailSentForSolidRed) {
+            setButtonState("solidRed");
+            Serial.println("Target time reached - sending immediate alert to caregiver");
+            String alertBody = "ALERT: The patient has reached the scheduled check-in time (";
+            alertBody += targetTime;
+            alertBody += "). Please ensure they check in now.";
+            // Send email notification
+            notificationManager->sendEmail(
+                "smtp.gmail.com", 465,
+                wifiManager->getSenderEmail().c_str(),
+                wifiManager->getSenderPassword().c_str(),
+                "URGENT: Scheduled Check-in Alert",
+                alertBody.c_str(),
+                configRedLED
+            );
+            // Send SMS notification via Twilio
+            String phoneNumber = wifiManager->getPhone();
+            if (!phoneNumber.isEmpty()) {
+                Serial.print("Sending SMS alert to: ");
+                Serial.println(phoneNumber);
+                notificationManager->sendTwilioSMS(phoneNumber, alertBody);
+            } else {
+                Serial.println("No phone number configured - skipping SMS alert");
             }
-            return; // Important: Exit here to prevent other logic from overriding
+            emailSentForSolidRed = true; // Mark as processed for this time slot
+            return;
         }
     }
     else if (isTimeWithinRange(String(currentTime), targetTime, 1800)) { // 30 minutes 
@@ -595,10 +749,34 @@ void ButtonManager::startConnectivityMode() {
 
 void ButtonManager::startVacationMode() 
 {
-    setMainLEDsBlue(); // Turn on the blue LEDs to indicate vacation mode
-    Serial.println("Vacation mode started. Device is in sleep mode.");
-    // Add any additional logic for vacation/sleep mode here
+    Serial.println("🏖️ Vacation mode started!");
+    
+    // Show blue LEDs as vacation mode indication for 3 seconds
+    setMainLEDsBlue(); 
+    Serial.println("💙 Showing vacation mode indication (3 seconds)...");
+    delay(3000); // Show blue for 3 seconds
+    
+    // Keep blue LEDs on during vacation mode as indication
+    setMainLEDsBlue();
+    vacationModeStarted = true;
+    Serial.println("Vacation mode active - press button to exit");
 }
+
+/*
+void ButtonManager::configureSleepWakeup() 
+{
+    // DISABLED - Sleep functionality removed
+    Serial.println("Sleep functionality disabled");
+}
+*/
+
+/*
+void ButtonManager::enterDeepSleep(unsigned long sleepTimeSeconds) 
+{
+    // DISABLED - Sleep functionality removed
+    Serial.println("Deep sleep functionality disabled");
+}
+*/
 
 void ButtonManager::tryConnectWiFi() {
     String ssid = wifiManager->getSSID();
@@ -628,6 +806,10 @@ void ButtonManager::tryConnectWiFi() {
         if (WiFi.status() == WL_CONNECTED) {
             Serial.println("WiFi connected.");
             wifiConnected = true;
+            
+            // Force reload configuration to get latest settings
+            wifiManager->reloadConfigFromNVS();
+            
             blinkConfigGreenLED(); // Blink the green LED five times rapidly to indicate successful connection
             setLED(configBlueLED, false, true); // Ensure the blue LED is turned off
             return;

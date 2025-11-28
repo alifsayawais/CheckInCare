@@ -21,16 +21,26 @@ WiFiManager::WiFiManager(const char* ap_ssid, const char* ap_password)
 }
 
 void WiFiManager::begin() {
+    Serial.println("Starting WiFi Access Point...");
+    WiFi.mode(WIFI_AP);
     WiFi.softAP(ap_ssid, ap_password);
+    
+    IPAddress IP = WiFi.softAPIP();
+    Serial.print("Access Point IP: ");
+    Serial.println(IP);
+    
     server.on("/", HTTP_GET, std::bind(&WiFiManager::handleRoot, this));
     server.on("/config", HTTP_POST, std::bind(&WiFiManager::handleConfig, this));
     server.onNotFound(std::bind(&WiFiManager::handleNotFound, this));
-    server.begin();
-    Serial.println("HTTP server started");
+    
+    // Set server timeouts for better stability
+    server.begin(80);
+    Serial.println("HTTP server started on port 80");
 }
 
 void WiFiManager::handleClient() {
     server.handleClient();
+    delay(10); // Small delay to prevent server overload
 }
 
 bool WiFiManager::isConfigured() {
@@ -38,6 +48,13 @@ bool WiFiManager::isConfigured() {
 }
 
 void WiFiManager::handleRoot() {
+    Serial.println("Handling root request from client");
+    
+    // Set response headers for better compatibility
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Pragma", "no-cache");
+    server.sendHeader("Expires", "-1");
+    
     server.send(200, "text/html",
     "<!DOCTYPE html>"
     "<html>"
@@ -231,7 +248,13 @@ void WiFiManager::handleConfig()
     if (!incoming.isEmpty()) emailSubject = incoming;
 
     incoming = server.arg("warning_threshold");
-    if (!incoming.isEmpty()) warningThreshold = incoming;
+    Serial.println("DEBUG: Raw form value for warning_threshold: '" + incoming + "'");
+    if (!incoming.isEmpty()) {
+        warningThreshold = incoming;
+        Serial.println("DEBUG: Set warningThreshold to: '" + warningThreshold + "'");
+    } else {
+        Serial.println("DEBUG: warning_threshold form field was empty!");
+    }
 
     // Save merged config
     saveConfigToNVS();
@@ -242,10 +265,14 @@ void WiFiManager::handleConfig()
     Serial.println("Phone: " + phone);
     Serial.println("Button Time: " + buttonTime);
     Serial.println("Time Zone: " + timeZone);
+    Serial.println("Warning Threshold: " + warningThreshold + " minutes");
 
     configured = true;
     server.send(200, "text/plain", "Configuration saved. You can close this window.");
-    delay(1000);
+    
+    // Add extra delay and force NVS sync
+    delay(5000); // Increase delay to 5 seconds
+    Serial.println("DEBUG: About to restart ESP32");
     ESP.restart();
 }
 
@@ -297,8 +324,16 @@ String WiFiManager::getWarningThreshold() {
     return warningThreshold;
 }
 
+void WiFiManager::reloadConfigFromNVS() {
+    Serial.println("DEBUG: Force reloading configuration from NVS");
+    loadConfigFromNVS();
+    Serial.println("DEBUG: Configuration reloaded - warning threshold is now: '" + warningThreshold + "'");
+}
+
 void WiFiManager::saveConfigToNVS() {
+    Serial.println("DEBUG: Starting saveConfigToNVS()");
     preferences.begin("wifi-config", false);
+    
     preferences.putString("ssid", ssid);
     preferences.putString("password", password);
     preferences.putString("email", email);
@@ -310,8 +345,21 @@ void WiFiManager::saveConfigToNVS() {
     preferences.putString("button_time", buttonTime);
     preferences.putString("time_zone", timeZone);
     preferences.putString("auth_token",authToken);
-    preferences.putString("warning_threshold", warningThreshold);
+    
+    // Debug: Show what we're saving
+    Serial.println("DEBUG: Saving warn_min to NVS: '" + warningThreshold + "'");
+    size_t written = preferences.putString("warn_min", warningThreshold);
+    Serial.println("DEBUG: NVS write returned: " + String(written) + " bytes");
+    
+    // Force commit by closing and reopening
     preferences.end();
+    Serial.println("DEBUG: NVS save complete - preferences closed");
+    
+    // Verify the save by reading it back
+    preferences.begin("wifi-config", true);
+    String verifyThreshold = preferences.getString("warn_min", "ERROR");
+    preferences.end();
+    Serial.println("DEBUG: Verification read: '" + verifyThreshold + "'");
 }
 
 void WiFiManager::loadConfigFromNVS() {
@@ -327,8 +375,11 @@ void WiFiManager::loadConfigFromNVS() {
     buttonTime = preferences.getString("button_time", "");
     timeZone = preferences.getString("time_zone", "");
     authToken = preferences.getString("auth_token","");
-    warningThreshold = preferences.getString("warning_threshold", "20");
+    warningThreshold = preferences.getString("warn_min", "20");
     preferences.end();
+
+    // Debug: Show what we loaded
+    Serial.println("DEBUG: Loaded warn_min from NVS: '" + warningThreshold + "'");
 
     // Check if configuration is valid
     if (ssid.length() > 0 && password.length() > 0) {
