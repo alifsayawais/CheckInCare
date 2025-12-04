@@ -55,7 +55,7 @@ The web interface provides comprehensive configuration options:
 - **Recipient Email:** Email address to receive alerts
 - **Phone Number:** Mobile number for SMS alerts (format: +1234567890)
 - **Sender Email:** Gmail account for sending notifications
-- **Sender Password:** Gmail app password (not regular password)
+- **Sender Password:** Gmail app password (see Gmail Setup section below)
 - **Auth Token:** Twilio authentication token for SMS
 - **Email Subject:** Custom subject line for notifications
 - **Message Body:** Default message content for alerts
@@ -71,6 +71,38 @@ To use custom reminder sounds:
 2. Place an MP3 file named `reminder.mp3` in the root directory
 3. Insert the SD card into the device
 4. The device will automatically use your custom sound, falling back to generated tones if the file is unavailable
+
+### Gmail App Password Setup
+
+For the device to send email notifications, you must set up a Gmail app password (not your regular Gmail password):
+
+#### Step 1: Enable 2-Factor Authentication
+1. Go to your **Google Account settings** (myaccount.google.com)
+2. Navigate to **Security** → **2-Step Verification**
+3. Follow the prompts to enable 2FA using your phone number
+4. Complete the verification process
+
+#### Step 2: Generate App Password
+1. Return to **Google Account Settings** → **Security**
+2. Under "2-Step Verification," click **App passwords**
+3. Select **Mail** from the app dropdown
+4. Select **Other (custom name)** from device dropdown
+5. Enter a name like "CheckInCare Device"
+6. Click **Generate**
+7. **Copy the 16-character password** (it will look like: `abcd efgh ijkl mnop`)
+
+#### Step 3: Configure Device
+1. In the CheckInCare web interface, enter:
+   - **Sender Email:** Your full Gmail address (example@gmail.com)
+   - **Sender Password:** The 16-character app password (without spaces)
+2. **Important:** Use the app password, NOT your regular Gmail password
+3. Save the configuration
+
+#### Troubleshooting Gmail Setup
+- **"Authentication failed" errors:** Verify you're using the app password, not regular password
+- **"Access blocked" notifications:** Ensure 2FA is enabled before creating app password
+- **No emails received:** Check spam/junk folder, verify recipient email is correct
+- **App password not working:** Delete and regenerate a new app password
 
 ---
 
@@ -259,12 +291,14 @@ The device includes intelligent power management features:
 ### Email Notification Failures  
 **Symptoms:** No email alerts received, error messages in serial monitor
 **Solutions:**
-- Verify sender email is a Gmail account
-- Use Gmail app password, not regular account password
-- Enable 2-factor authentication on Gmail account
+- **Verify Gmail app password setup** (see Gmail Setup section above)
+- Ensure sender email is a Gmail account with 2FA enabled
+- Use Gmail app password (16 characters), not regular account password
+- Check that app password was copied correctly (no spaces)
+- Verify recipient email address is correct and accessible
 - Check spam/junk folder for alerts
-- Verify recipient email address is correct
 - Test with simple email subject/body first
+- Try generating a new app password if authentication fails
 
 ### SMS Notification Issues
 **Symptoms:** Emails work but no SMS received
